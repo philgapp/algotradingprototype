@@ -7,7 +7,7 @@ const PAPER = true;
 
 class LongShort {
   constructor(API_KEY, API_SECRET, PAPER){
-    this.Alpaca = require('/library');
+    this.Alpaca = require('../library');
     this.alpaca = new this.Alpaca({
       keyId: API_KEY, 
       secretKey: API_SECRET, 
@@ -38,8 +38,6 @@ class LongShort {
 // Run the LongShort class
 var ls = new LongShort(API_KEY, API_SECRET, PAPER);
 ls.run();
-
-
 
 async run(){
   // First, cancel any existing orders so they don't impact our buying power.
@@ -163,8 +161,6 @@ async submitOrder(quantity,stock,side){
   });
   return prom;
 }
-
-
 
 // Rebalance our position after an update.
 async rebalance(){
@@ -441,3 +437,5 @@ async sendBatchOrder(quantity, stocks, side){
   });
   return prom;
 }
+
+module.exports = LongShort;
