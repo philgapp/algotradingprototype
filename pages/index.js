@@ -17,7 +17,7 @@ const Home = () => (
       </p>
 
       <div className="grid">
-         <a href="/alpacapaper.js" className="card">
+         <a href="/alpacapaper" className="card">
           <h3>Alpaca Paper Trading &rarr;</h3>
           <p>Go view the first custom page!</p>
         </a>
