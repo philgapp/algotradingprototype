@@ -12,7 +12,7 @@ const PositionType = { LONG: 'long', SHORT: 'short' }
 
 class LongShort {
   constructor ({ keyId, secretKey, paper = true, bucketPct = 0.25 }) {
-    this.Alpaca = require('./../library/alpaca-trade-api');
+    this.Alpaca = require('./library/alpaca-trade-api');
     this.alpaca = new Alpaca({
       keyId: keyId,
       secretKey: secretKey,
