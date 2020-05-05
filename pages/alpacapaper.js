@@ -1,6 +1,6 @@
 import Head from 'next/head'
 
-
+var startAlpaca = require('./library/prototype/core.js');
 
 const Home = () => (
   <div className='container'>
