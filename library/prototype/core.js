@@ -7,7 +7,7 @@ const PAPER = true;
 
 class LongShort {
   constructor(API_KEY, API_SECRET, PAPER){
-    this.Alpaca = require('./library');
+    this.Alpaca = require('/library');
     this.alpaca = new this.Alpaca({
       keyId: API_KEY, 
       secretKey: API_SECRET, 
