@@ -1,3 +1,9 @@
+This project is to use a Vercel (previously ZEIT) serveless Node.js and Next.js stack along with the Alpaca JS API to create and test automated trading algorithms. The long term goal is to deploy a production-grade application with full user functionality and the ability to choose/change which algorithms are used in their trading strategy, to view the realtime and historical results of all algos, and to enable ongoing improvements to modern AI/algo-based trading. On top of that this project will provide target information and other controls and views to easily monitor and manage a given portfolio.
+
+
+The default Next.js readme follows:
+
+
 This is a [Next.js](https://nextjs.org/) project bootstrapped with [`create-next-app`](https://github.com/zeit/next.js/tree/canary/packages/create-next-app).
 
 ## Getting Started
@@ -21,7 +27,7 @@ To learn more about Next.js, take a look at the following resources:
 - [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
 - [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
 
-You can check out [the Next.js GitHub repository](https://github.com/zeit/next.js/) - your feedback and contributions are welcome!
+You can check out [the Next.js GitHub repository](https://github.com/zeit/next.js) - your feedback and contributions are welcome!
 
 ## Deploy on Vercel
 

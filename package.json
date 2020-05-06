@@ -8,8 +8,12 @@
     "start": "next start"
   },
   "dependencies": {
-    "next": "9.3.6",
-    "react": "16.13.1",
-    "react-dom": "16.13.1"
+    "@alpacahq/alpaca-trade-api": "^1.2.9",
+    "next": "^9.3.3",
+    "react": "^16.13.0",
+    "react-dom": "^16.13.0"
+  },
+  "devDependencies": {
+    "dotenv-webpack": "^1.7.0"
   }
 }
