@@ -10,24 +10,10 @@ class Dashboard extends React.Component {
         }
     }
 
-    listUsers() {
-        Airtable.retrieveRecords('users').then(function(user) {
-            const userData = {}
-            console.log(user)
-/*
-            this.setState({
-                users: userData,
-            })
-
- */
+    componentDidMount() {
+        Airtable.retrieveRecords('users').then(function(response) {
+            console.log('ze resp:', response);
         })
-        console.log(this.state.users)
-        const userList = this.state.users
-        for(let user in userList) {
-            console.log(this.state.users[user])
-        }
-            //<li key={this.state.users.user[id]}>(this.state.users.user.fields.username)</li>
-
     }
 
     render() {
@@ -42,9 +28,9 @@ class Dashboard extends React.Component {
                     <li><a href="/">Home</a></li>
                     <li><a href="/alpacapaper">Alpaca Paper - Long Short</a></li>
                 </ul>
-                <ul>
+                {/* <ul>
                     {this.listUsers()}
-                </ul>
+                </ul> */}
                 <h3>
                     TODO
                 </h3>

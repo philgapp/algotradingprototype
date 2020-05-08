@@ -17,7 +17,7 @@ export function retrieveRecords(table,find) {
     if(table) {
         let thisTable = connectTable(table)
         if(find) { // Retrieve a specific record
-            thisTable.find(find, function(err, record) {
+            return thisTable.find(find, function(err, record) {
                 if (err) { console.error(err); return; }
                 console.log('Retrieved', record.id);
                 return record
@@ -28,29 +28,30 @@ export function retrieveRecords(table,find) {
                 // Selecting the first 3 records in Grid view:
                 maxRecords: 3,
                 view: "Grid view"
-            }).eachPage(function page(records, fetchNextPage) {
-                // This function (`page`) will get called for each page of records.
-                /*
-                let i = 0;
-                records.forEach(function(record) {
-                    let newitem = {}
-                    newitem.id = record.id
-                    newitem.fields = record.fields
-                    result[i] = newitem
-                    i++
-                    //console.log('Retrieved', record.get('UserName'));
-                });
+            }).firstPage();
+            // .eachPage(function page(records, fetchNextPage) {
+            //     // This function (`page`) will get called for each page of records.
+            //     /*
+            //     let i = 0;
+            //     records.forEach(function(record) {
+            //         let newitem = {}
+            //         newitem.id = record.id
+            //         newitem.fields = record.fields
+            //         result[i] = newitem
+            //         i++
+            //         //console.log('Retrieved', record.get('UserName'));
+            //     });
 
-                */
+            //     */
 
-                // To fetch the next page of records, call `fetchNextPage`.
-                // If there are more records, `page` will get called again.
-                // If there are no more records, `done` will get called.
-                fetchNextPage()
-                //console.log(result)
-            }, function done(err) {
-                if (err) { console.error(err); return; }
-            });
+            //     // To fetch the next page of records, call `fetchNextPage`.
+            //     // If there are more records, `page` will get called again.
+            //     // If there are no more records, `done` will get called.
+            //     fetchNextPage()
+            //     //console.log(result)
+            // }, function done(err) {
+            //     if (err) { console.error(err); return; }
+            // });
             //console.log(result)
             //return result
         }
