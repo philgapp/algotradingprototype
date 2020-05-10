@@ -17,43 +17,38 @@ export function retrieveRecords(table,find) {
     if(table) {
         let thisTable = connectTable(table)
         if(find) { // Retrieve a specific record
-            return thisTable.find(find, function(err, record) {
+            thisTable.find(find, function(err, record) {
                 if (err) { console.error(err); return; }
                 console.log('Retrieved', record.id);
                 return record
             });
         } else { // Do default full listing of records if 'find' is not given for specific record
-            //const result = {}
-            return thisTable.select({
+            const result = new Array()
+            thisTable.select({
                 // Selecting the first 3 records in Grid view:
                 maxRecords: 3,
                 view: "Grid view"
-            }).firstPage();
-            // .eachPage(function page(records, fetchNextPage) {
-            //     // This function (`page`) will get called for each page of records.
-            //     /*
-            //     let i = 0;
-            //     records.forEach(function(record) {
-            //         let newitem = {}
-            //         newitem.id = record.id
-            //         newitem.fields = record.fields
-            //         result[i] = newitem
-            //         i++
-            //         //console.log('Retrieved', record.get('UserName'));
-            //     });
+            })
+            .eachPage(function page(records, fetchNextPage) {
+                // This function (`page`) will get called for each page of records.
+                 records.forEach(function(record) {
+                     let newitem = {'id':record.id,'fields':record.fields}
+                     result.push(newitem)
+                     //console.log('Retrieved', record.get('UserName'));
+                 });
 
-            //     */
-
-            //     // To fetch the next page of records, call `fetchNextPage`.
-            //     // If there are more records, `page` will get called again.
-            //     // If there are no more records, `done` will get called.
-            //     fetchNextPage()
-            //     //console.log(result)
-            // }, function done(err) {
-            //     if (err) { console.error(err); return; }
-            // });
+                 // To fetch the next page of records, call `fetchNextPage`.
+                 // If there are more records, `page` will get called again.
+                 // If there are no more records, `done` will get called.
+                 fetchNextPage()
+                 //console.log(result)
+            }, function done(err) {
+                 if (err) { console.error(err); return; }
+            });
             //console.log(result)
-            //return result
+            return new Promise((resolve, reject) => {
+                result ? resolve(result) : reject('Error')
+            })
         }
     } else {
         return 'Table not found or given in retrieveRecords()'

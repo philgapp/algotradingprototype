@@ -1,50 +1,52 @@
 import Head from 'next/head'
-import React from 'react'
+import React, {useState, useEffect} from 'react'
 import * as Airtable from "../library/airtable/airtable";
 
-class Dashboard extends React.Component {
-    constructor(props) {
-        super(props);
-        this.state = {
-            users: null,
-        }
-    }
+function Dashboard() {
+    const [UserList, setUserList]= useState({});
 
-    componentDidMount() {
-        Airtable.retrieveRecords('users').then(function(response) {
-            console.log('ze resp:', response);
-        })
-    }
+    useEffect(() => {
+         const fetchData = async () => {
+             await Airtable.retrieveRecords('users')
+             .then(response => {
+                 setTimeout(function() {
+                     setUserList(response)
+                 },2000)
+             })
+         }
+         fetchData()
+    },[]);
 
-    render() {
+    return (
 
-        return (
+        <div>
+            <h1>
+                Algo Trading Prototype Dashboard
+            </h1>
+            <ul className="menu">
+                <li><a href="/">Home</a></li>
+                <li><a href="/alpacapaper">Alpaca Paper - Long Short</a></li>
+            </ul>
+            <ul className='userlist'>
+                {UserList.length > 0 ? Object.entries(UserList).map(item => {
+                    if(typeof item[1]['fields']['UserName'] !== 'undefined') {
+                        return <li key={item[1]['id']}>{item[1]['fields']['UserName']}</li>
+                    }
+                }) : 'Loading Usernames...'}
+            </ul>
+            <h3>
+                TODO
+            </h3>
+            <ul className='todo'>
+                <li>List open positions</li>
+                <li>Display a pie chart with options to view by position, sector, etc.</li>
+                <li>List open positions</li>
+                <li>Select an algorithm</li>
+                <li>Start/Stop and see status of selected algorithm</li>
+            </ul>
 
-            <div>
-                <h1>
-                    Algo Trading Prototype Dashboard
-                </h1>
-                <ul className="menu">
-                    <li><a href="/">Home</a></li>
-                    <li><a href="/alpacapaper">Alpaca Paper - Long Short</a></li>
-                </ul>
-                {/* <ul>
-                    {this.listUsers()}
-                </ul> */}
-                <h3>
-                    TODO
-                </h3>
-                <ul>
-                    <li>List open positions</li>
-                    <li>Display a pie chart with options to view by position, sector, etc.</li>
-                    <li>List open positions</li>
-                    <li>Select an algorithm</li>
-                    <li>Start/Stop and see status of selected algorithm</li>
-                </ul>
-
-            </div>
-        )
-    }
+        </div>
+    )
 }
 
 export default Dashboard
