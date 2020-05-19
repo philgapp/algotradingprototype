@@ -1,11 +1,13 @@
-import Head from 'next/head'
 import React, {useState, useEffect} from 'react'
 import * as Airtable from "../library/airtable/airtable";
+//import loadData from "../library/load.data";
 
 function Dashboard() {
-    const [UserList, setUserList]= useState({});
+    const [UserList, setUserList] = useState({});
+    const [StockList, setStockList] = useState({});
 
     useEffect(() => {
+        //loadData()
          const fetchData = async () => {
              await Airtable.retrieveRecords('users')
              .then(response => {
@@ -13,7 +15,15 @@ function Dashboard() {
                      setUserList(response)
                  },2000)
              })
+
+             await Airtable.retrieveRecords('stocks')
+                 .then(response => {
+                     setTimeout(function() {
+                         setStockList(response)
+                     },2000)
+                 })
          }
+
          fetchData()
     },[]);
 
@@ -27,16 +37,32 @@ function Dashboard() {
                 <li><a href="/">Home</a></li>
                 <li><a href="/alpacapaper">Alpaca Paper - Long Short</a></li>
             </ul>
+
+            <h4>
+                Users
+            </h4>
             <ul className='userlist'>
                 {UserList.length > 0 ? Object.entries(UserList).map(item => {
                     if(typeof item[1]['fields']['UserName'] !== 'undefined') {
-                        return <li key={item[1]['id']}>{item[1]['fields']['UserName']}</li>
+                        return <li id={item[1]['id']}>{item[1]['fields']['UserName']}</li>
                     }
                 }) : 'Loading Usernames...'}
             </ul>
-            <h3>
+
+            <h4>
+                Stocks
+            </h4>
+            <ul className='stocklist'>
+                {StockList.length > 0 ? Object.entries(StockList).map(item => {
+                    if(typeof item[1]['fields']['TICKER'] !== 'undefined') {
+                        return <li id={item[1]['id']}>{item[1]['fields']['TICKER']}</li>
+                    }
+                }) : 'Loading Stocks...'}
+            </ul>
+
+            <h4>
                 TODO
-            </h3>
+            </h4>
             <ul className='todo'>
                 <li>List open positions</li>
                 <li>Display a pie chart with options to view by position, sector, etc.</li>

@@ -1,8 +1,12 @@
 // This is the primary class (model) for managing AirTable data, and uses all the files in the library/airtable dir
-// TODO connect to airtable, build out
+// TODO pull API key and base from user table
 
-const Config = require('./airtable.config')
-const AirDB = new Config()
+const Airtable = require('airtable');
+Airtable.configure({
+    endpointUrl: 'https://api.airtable.com',
+    apiKey: 'keyOpXdzxlE4OloHX' // This is the prototype development key only!
+});
+const AirDB = new Airtable()
 const AirBase = AirDB.base('appI7GpgW9EUJz5mo') // This is the prototype development base only!
 
 function connectTable(table) {
@@ -16,17 +20,19 @@ function connectTable(table) {
 export function retrieveRecords(table,find) {
     if(table) {
         let thisTable = connectTable(table)
+
         if(find) { // Retrieve a specific record
             thisTable.find(find, function(err, record) {
                 if (err) { console.error(err); return; }
-                console.log('Retrieved', record.id);
-                return record
+                return new Promise((resolve, reject) => {
+                    record ? resolve(record) : reject('Error')
+                })
             });
         } else { // Do default full listing of records if 'find' is not given for specific record
             const result = new Array()
             thisTable.select({
                 // Selecting the first 3 records in Grid view:
-                maxRecords: 3,
+                //maxRecords: 3,
                 view: "Grid view"
             })
             .eachPage(function page(records, fetchNextPage) {

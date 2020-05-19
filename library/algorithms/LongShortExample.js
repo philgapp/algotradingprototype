@@ -4,18 +4,19 @@
 const AlpacaConfig = require('../alpaca.config');
 const SideType = { BUY: 'buy', SELL: 'sell' }
 const PositionType = { LONG: 'long', SHORT: 'short' }
+const algoLogArray = new Array()
 
 class LongShort {
-    constructor ({ keyId, secretKey, paper = true, bucketPct = 0.25 }) {
+    constructor ({ keyId, secretKey, paper = true, stocks, bucketPct = 0.25 }) {
         var Alpaca = require('@alpacahq/alpaca-trade-api');
         this.alpaca = new Alpaca({
             keyId: keyId,
             secretKey: secretKey,
             paper: paper,
-            usePolygon: USE_POLYGON,
+            usePolygon: USE_POLYGON
         })
 
-        let stocks = ['DOMO', 'TLRY', 'SQ', 'MRO', 'AAPL', 'GM', 'SNAP', 'SHOP', 'SPLK', 'BA', 'AMZN', 'SUI', 'SUN', 'TSLA', 'CGC', 'SPWR', 'NIO', 'CAT', 'MSFT', 'PANW', 'OKTA', 'TWTR', 'TM', 'RTN', 'ATVI', 'GS', 'BAC', 'MS', 'TWLO', 'QCOM']
+        //let stocks = ['DOMO', 'TLRY', 'SQ', 'MRO', 'AAPL', 'GM', 'SNAP', 'SHOP', 'SPLK', 'BA', 'AMZN', 'SUI', 'SUN', 'TSLA', 'CGC', 'SPWR', 'NIO', 'CAT', 'MSFT', 'PANW', 'OKTA', 'TWTR', 'TM', 'RTN', 'ATVI', 'GS', 'BAC', 'MS', 'TWLO', 'QCOM']
         this.stockList = stocks.map(item => ({ name: item, pc: 0 }))
 
         this.long = []
@@ -29,6 +30,10 @@ class LongShort {
         this.shortAmount = 0
         this.timeToClose = null
         this.bucketPct = bucketPct
+    }
+
+    getLogs() {
+        return algoLogArray
     }
 
     async run () {
@@ -60,7 +65,7 @@ class LongShort {
 
                 try {
                     let positions = await this.alpaca.getPositions()
-        log(Math.abs(position.qty));
+
                     await Promise.all(positions.map(position => this.submitOrder({
                         quantity: Math.abs(position.qty),
                         stock: position.symbol,
@@ -156,7 +161,6 @@ class LongShort {
         await Promise.all(positions.map(position => {
             return new Promise(async (resolve, reject) => {
                 let quantity = Math.abs(position.qty)
-                log('Line 164 QTY = ${quantity}') // FOR TESTING!
                 let symbol = position.symbol
 
                 if (this.long.indexOf(symbol) < 0) {
@@ -191,7 +195,6 @@ class LongShort {
                             // Need to adjust position amount
                             let diff = Number(quantity) - Number(this.qShort)
                             try {
-            log(Math.abs(diff));
                                 await this.submitOrder({
                                     quantity: Math.abs(diff),
                                     stock: symbol,
@@ -199,7 +202,6 @@ class LongShort {
                                     // sell = Too little short positions. Sell some more.
                                     side: diff > 0 ? SideType.BUY : SideType.SELL
                                 })
-                                log('Line 206 QTY = ${quantity}') // FOR TESTING!
                             } catch (err) {
                                 log(err.error)
                             }
@@ -224,7 +226,6 @@ class LongShort {
                         // sell = Too many long positions. Sell some to rebalance.
                         // buy = Too little long positions. Buy some more.
                         let side = diff > 0 ? SideType.SELL : SideType.BUY
-                        log('Line 231 QTY = ${quantity}') // FOR TESTING!
                         try {
                             await this.submitOrder({ quantity: Math.abs(diff), stock: symbol, side })
                         } catch (err) {
@@ -255,10 +256,6 @@ class LongShort {
                     side: SideType.SELL
                 })
             ])
-    log('qLong');
-    log(this.qLong);
-    log('qShort');
-    log(this.qShort);
 
             executed.long = longOrders.executed.slice()
             executed.short = shortOrders.executed.slice()
@@ -291,7 +288,6 @@ class LongShort {
 
                 if (this.adjustedQLong >= 0) {
                     this.qLong = this.adjustedQLong - this.qLong
-        log(this.qLong);
                     allProms = [
                         ...allProms,
                         ...executed.long.map(stock => this.submitOrder({
@@ -352,8 +348,6 @@ class LongShort {
             let longPrices = await this.getTotalPrice(this.long)
             let longTotal = longPrices.reduce((a, b) => a + b, 0)
             this.qLong = Math.floor(this.longAmount / longTotal)
-log('qLong L 360');
-log(this.qLong);
         } catch (err) {
             log(err.error)
         }
@@ -362,8 +356,6 @@ log(this.qLong);
             let shortPrices = await this.getTotalPrice(this.short)
             let shortTotal = shortPrices.reduce((a, b) => a + b, 0)
             this.qShort = Math.floor(this.shortAmount / shortTotal)
-log('qShort L 370');
-log(this.qShort);
         } catch (err) {
             log(err.error)
         }
@@ -391,7 +383,6 @@ log(this.qShort);
 
     // Submit an order if quantity is above 0.
     async submitOrder ({ quantity, stock, side }) {
-        log('Line 390 QTY = ' + quantity) // FOR TESTING!
         return new Promise(async (resolve) => {
             if (quantity <= 0) {
                 log(`Quantity is <=0, order of | ${quantity} ${stock} ${side} | not sent.`)
@@ -476,6 +467,8 @@ log(this.qShort);
 
 function log (text) {
     console.log(text)
+    algoLogArray.push(text)
+    return algoLogArray
 }
 
 module.exports = LongShort;

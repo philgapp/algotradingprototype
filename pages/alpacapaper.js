@@ -1,98 +1,150 @@
 import Head from 'next/head'
-import ReactDOM from 'react-dom'
-import React from 'react'
+import React, {useState, useEffect} from 'react'
+import * as Airtable from "../library/airtable/airtable";
+// TODO Pull from USER info instead of including hard-coded Alpaca config details:
+require('../library/alpaca.config')
+import AlgoMasterPrototype from '../library/algorithms/algo-master-prototype'
 
-const startAlpaca = require('../library/algorithms/LongShortExample.js');
-// Instantiate the LongShort class
-const ls = new startAlpaca({
-    keyId: API_KEY,
-    secretKey: API_SECRET,
-    paper: PAPER,
-})
+function loadAlpaca() {
+    const [stocklist, setStockList] = useState([]);
+    const [abort, setAbort] = useState(false)
+    const [value, setValue] = useState('Loading...')
+    const [algo, setAlgo] = useState({})
 
-function Button(props) {
-    return (
-        <button onClick={props.onClick}>{props.value}</button>
-    );
-}
+    useEffect(() => {
+        //loadData()
+        const fetchData = async () => {
+            await Airtable.retrieveRecords('stocks')
+            .then(response => {
+                setTimeout(function() {
+                    setStockList(response)
+                    setAlgo(runAlpaca(response))
+                },2000)
+            })
+        }
 
-class BuildButton extends React.Component {
-    renderButton() {
+        fetchData()
+    },[]);
+
+    function runAlpaca(props) {
+        const StockTickers = []
+        props.map(item => {
+            if (typeof item['fields']['TICKER'] !== 'undefined') {
+                StockTickers.push(item['fields']['TICKER'])
+            }
+        })
+        // Instantiate the AlgoMasterPrototype class
+        var algoClass = new AlgoMasterPrototype({
+            API_KEY, API_SECRET, stocks: StockTickers
+        })
+        setValue('Run Master Algorithm')
+        return algoClass
+    }
+
+    function Button(props) {
         return (
-            <Button
-                onClick = {() => this.props.onClick()}
-                value = {this.props.value}
-            />
+            <button onClick={props.onClick}>{props.value}</button>
         );
     }
 
-    render() {
-        return (
-            <div>
-                {this.renderButton()}
-            </div>
-        );
-    }
-}
-
-class AlpacaPaper extends React.Component {
-    constructor(props) {
-        super(props);
-        this.state = {
-            abort: false,
-            value: 'Run Long Short Algorithm',
-        };
-    }
-
-    algoButton(abort) {
-        if (abort) {
-            this.setState({
-                abort: false,
-                value: 'Run Long Short Algorithm',
-            });
+    function algoButton(props) {
+        if (props.abort) {
+            setAbort(false)
+            setValue('Run Master Algorithm')
             // TODO stop Long Short algo!
-            ls.stop()
+            algo.kill()
         } else {
             // Run LongShort
-            ls.run() // Also logs to client side (browser) now
-            this.setState({
-                abort: true,
-                value: 'Stop Long Short Algorithm',
-            });
+            algo.init()
+            algo.run() // Also logs to client side (browser) now
+            console.log('Running Master Algorithm')
+            setAbort(true)
+            setValue('Stop Master Algorithm')
         }
     }
 
-    render() {
-        return (
-            <div className='container'>
-                <Head>
-                    <title>Alpaca Paper Trading Prototype</title>
-                    <link rel="icon" href="/favicon.ico"/>
-                </Head>
+    return (
+        <div className='container'>
+            <Head>
+                <title>Alpaca Paper Trading Prototype</title>
+                <link rel="icon" href="/favicon.ico"/>
+                <link rel="stylesheet" type="text/css" href="/long-short-browser/browser-trader-style.css"/>
+                <script src="/long-short-browser/Chart.bundle.js"></script>
+            </Head>
 
-                <main>
-                    <h1 className="title">
-                        Alpaca Paper - Long Short Example Algorithm
-                    </h1>
+            <main>
+                <h1 className="title">
+                    Alpaca Paper - Master Algorithm
+                </h1>
 
-                    <p className="description">
-                        To run or stop click the button below. Check the log for details until the status UI is built.
-                    </p>
+                <p className="description">
+                    To run or stop click the button below. Check the log for details until the status UI is built.
+                </p>
 
-                    <p>
-                        <BuildButton
-                            onClick = {() => this.algoButton(this.state.abort)}
-                            value = {this.state.value}
-                        />
-                    </p>
+                <p>
+                    <Button
+                        onClick = {() => algoButton({abort})}
+                        value = {value}
+                    />
+                </p>
 
-                    <p>
-                        TODO display output from Long Short Example Algo here!
-                    </p>
-                </main>
-            </div>
-        );
-    }
+                <div id="title-container">
+                    <h2>Master Prototype Trading Algorithm</h2>
+                </div>
+                <div id="data-container">
+                    <div id="side-container">
+                        <div id="positions">
+                            <h5 style={{margin: "5px", fontWeight: "bold"}}>Positions</h5>
+                            <div id="positions-title">
+                                <p className="position-fragment">Symbol</p>
+                                <p className="position-fragment">Qty</p>
+                                <p className="position-fragment">Side</p>
+                                <p className="position-fragment">+/-</p>
+                            </div>
+                            <div id="positions-log">
+
+                            </div>
+                        </div>
+                        <div id="orders">
+                            <h5 style={{margin: "5px", fontWeight: "bold"}}>Orders</h5>
+                            <div id="order-title">
+                                <p className="order-fragment">Symbol</p>
+                                <p className="order-fragment">Qty</p>
+                                <p className="order-fragment">Side</p>
+                                <p className="order-fragment">Type</p>
+                            </div>
+                            <div id="orders-log">
+
+                            </div>
+                        </div>
+                    </div>
+                    <div id="chart-container">
+                        <canvas id="main_chart"></canvas>
+                    </div>
+                    <div id="event-log">
+
+                    </div>
+                </div>
+                <div id="bottom-container">
+
+                </div>
+            </main>
+        </div>
+    );
 }
 
-export default AlpacaPaper
+/*
+<button type="button" className="btn btn-success control-button" onClick="runScript();">
+    Run script
+</button>
+<div id="input-container">
+    <h5 id="input-title">Enter credentials here</h5>
+    <input id="api-key" type="text" placeholder="API_KEY"/>
+    <input id="api-secret" type="text" placeholder="API_SECRET"/>
+</div>
+<button type="button" className="btn btn-danger control-button" onClick="killScript();">
+    Kill script
+</button>
+*/
+
+export default loadAlpaca
