@@ -1,4 +1,5 @@
 import "../algoapp.css"
+import ReactDOM from 'react-dom'
 
 //import App from 'next/app'
 

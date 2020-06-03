@@ -1,6 +1,22 @@
 import Head from 'next/head'
 
+const LeftSide = (props) => {
+        return <div id={'LeftSide'}>
+            <div id={'AlgoLogo'}><h1>Algo Trading</h1></div>
+            <div id={'AlgoMainMenu'}>
+                <button id={'reloadPage'} onClick={() => reloadPage(reload)} value={'Reload All Data'}>Reload All Data</button>
+                <p>Clears page and requests data from Airtable and Alpaca.</p>
+                <button onClick={()=>renderStockData()}>Load Stocks from Airtable</button>
+                <p>Lists the stocks pulled from Airtable. Click a stock to see price and current technical data below the its name.</p>
+                <button onClick={()=>renderTI()}>Calculate Technicals for ALL Stocks (in DB, could take some time, may have to run twice) </button>
+                <p>Primarily used in development, this will calculate and render the charts for ALL stocks pulled from Airtable. (This occurs below the other stock list, TODO connect both for similar UX)</p>
+            </div>
+        </div>
+    }
+
 const Home = () => (
+
+
   <div className="container">
     <Head>
       <title>Create Next App</title>
@@ -21,6 +37,11 @@ const Home = () => (
             <h3>Dashboard &rarr;</h3>
             <p>View the main page for the project, see open positions, and choose algorithms to play with.</p>
           </a>
+
+          <a href="/polygon-testing" className="card">
+                      <h3>Polygon Testing - Technical Indicators &rarr;</h3>
+                      <p>Currently the main page for the app. This provides a test ground with basic design, data from Airtable and Alpaca, and charts showing calculations for technical indicators to use. Coming soon: Showing work for decision making within the algorithm based on TI data!!!</p>
+                    </a>
 
          <a href="/alpacapaper" className="card">
           <h3>Alpaca Paper Trading - Long and Short &rarr;</h3>

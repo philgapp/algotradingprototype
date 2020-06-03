@@ -8,7 +8,8 @@ import {serveStatic} from "next/dist/next-server/server/serve-static";
 const _ = require('lodash');
 
 function PolygonTest() {
-    const [barsToPull, setBarsToPull] = useState(250) // Number of bars to pull from Alpaca API
+    // STATE
+    const [barsToPull, setBarsToPull] = useState(350) // Number of bars to pull from Alpaca API
     const [barSize, setBarSize] = useState('1D') // 1Min (or minute), 5Min, 15Min, 1D (or day)
     const [stocks, setStocks] = useState([]); // Array of stocks pulled from Airtable
     const [bars, setBars] = useState([]); // All price data for all stocks, used for TI calcs
@@ -17,6 +18,7 @@ function PolygonTest() {
     const [stocksTI, setStocksTI] = useState([]); // TI calc results for all stocks
     const [settings, setSettings] = useState([]);
     const [reload, setReload] = useState(false) // Used with Reload Page button and function to pull data
+    // Alpaca API Class
     const Alpaca = new AlpacaCORS({
         keyId: API_KEY, // TODO pull from Airtable
         secretKey: API_SECRET, // TODO pull from Airtable
@@ -24,9 +26,13 @@ function PolygonTest() {
         corsUrl: 'http://localhost:8080',
         baseUrl: 'https://paper-api.alpaca.markets'
     });
+    // Other initial variables
     const newDate = new Date()
     const today = newDate.toISOString()
 
+    // Side effect hook (previously React lifecycle function(s))
+    // Used to load initial data, but
+    // TODO requires attention, fewer button clicks, better promise handling, more dynamic
     useEffect(() => {
         let alpacastocks = [] // Used to pull Alpaca data for stocks pulled from Airtable
         if(stocks.length > 0) {
@@ -92,7 +98,7 @@ function PolygonTest() {
         calculateStocksTI()
         //renderPage()
     },[reload]);
-    // END useEffect() (React Hook)
+    // END useEffect()
 
     function reloadPage(props) {
         const value = !props
@@ -123,6 +129,9 @@ function PolygonTest() {
         })
     }
 
+    // Used to display data once loaded, but now simply translates Alpaca stock data and for each stock
+    // calls the TI() function to run calculations
+    // TODO refactor to improve performance, simplify code, etc.
     function calculateStocksTI() {
         let allTI = []
         let bar
@@ -166,7 +175,7 @@ function PolygonTest() {
     // TODO user wants to use!)
     function TI(props,rsi,sma,ema) {
         let TIresult = []
-        let display_period = 29// Number of days in charts
+        let display_period = 59// Number of days in charts
         let rsi_period = 14//rsi ? rsi : (props.length - 1)
         let sma200_period = 200//sma ? sma : 200
         // NOTE: Other SMAs are hardcoded as of 28 May 2020
@@ -194,12 +203,17 @@ function PolygonTest() {
         let sma5prices = []
         let sma12prices = []
         let sma26prices = []
+        let sma50prices = []
+        let sma100prices = []
         let sma200prices = []
         let rsiarray = []
+        let rsi_sarray = []
         let totalLoss
         let totalGain
         let avgGain
         let avgLoss
+        let avgGain_s
+        let avgLoss_s
         let iGain = 0
         let iLoss = 0
         let rsiavggain = []
@@ -208,6 +222,8 @@ function PolygonTest() {
         let sma5array = []
         let sma12array = []
         let sma26array = []
+        let sma50array = []
+        let sma100array = []
         let sma200array = []
         let ema12array = []
         let ema26array = []
@@ -217,46 +233,31 @@ function PolygonTest() {
         let i = 0
         let i2 = 0
 
-        // Log gains and losses (NOTE! Losses tracked by absolute (as positive floats))
+        // Calculate Indicators, looping through each bar of data passed as props
         Object.entries(props).map(bar => {
-            // Ready to make this dynamic, but for now we are always using the closing price of each bar
+            // Ready to make  dynamic, for now always using closing price of each bar
             pricetime = 'close'
             // Set today to current close price and store in price array
             let current = bar[1][pricetime]
             pricearray.push(current)
-            // Add date for this bar to dates array
+            // Add date for bar to dates array
             dates.push(bar[1]['date'])
-            // If we already looped through once, we can start comparing prices and calculating TIs
+            // If already looped  once, start comparing prices and calculating TIs
             if (previous) {
-                // Difference between bar prices, store to use 'Gap' data in decision-making
+                // Difference between bar prices, store 'Gap'
                 diff = (current - previous)
                 pricegap.push(diff)
-
-                 /*else {
-                    if (diff > 0) {
-                        avgGain = ((rsiavggain[iGain] * (rsi_period - 1)) + diff) / rsi_period
-                        rsiavggain.push(avgGain)
-                        let RS = avgGain / avgLoss
-                        let RSI = 100 - (100 / (1 + RS))
-                        rsiarray.push(RSI)
-                        iGain++
-                    } else {
-                        avgLoss = ((rsiavgloss[iLoss] * (rsi_period - 1)) + Math.abs(diff)) / rsi_period
-                        rsiavgloss.push(avgLoss)
-                        let RS = avgGain / avgLoss
-                        let RSI = 100 - (100 / (1 + RS))
-                        rsiarray.push(RSI)
-                        iLoss++
-                    }
-
-                } */
             }
             // Store current price as previous to use in the next loop and increment i
             previous = current
             i++
 
             // RSI Calculation (simple and smoothed)
-            // If we have looped <= RSI period, simply collect gain and loss data
+            let RS
+            let RSI
+            let RS_s
+            let RSI_s
+            // Looped <= RSI period? Then only collect gain and loss data
             if (i <= rsi_period && i > 0) {
                 if (diff > 0) {
                     rsioldest.push(1) // 1 = gain
@@ -265,7 +266,8 @@ function PolygonTest() {
                     rsioldest.push(0) // 0 = loss
                     rsilosses.push(Math.abs(diff))
                 }
-                // If we are past the number of loops = RSI period, we have enough data to calculate RSI!
+
+            // Past the number of loops = RSI period? Have enough data to calculate initial RSI!
             } else {
                 if (rsioldest[0] === 1) { // If the oldest element was a gain, remove oldest gain from gains array
                     rsigains.shift()
@@ -282,20 +284,41 @@ function PolygonTest() {
                 }
                 rsioldest.shift() // Keep track of oldest element, maintaining length = rsi_period
 
+                // After first RSI loop, smooth avgGain_s and avgLoss_s
+                // For smoothing, one loop after the rsi_period store the first avgGain_s and avgLoss_s
+                if (i === rsi_period + 1) {
+                    totalGain = _.sum(rsigains)
+                    avgGain_s = totalGain / rsi_period
+                    rsiavggain.push(avgGain_s)
+
+                    totalLoss = _.sum(rsilosses)
+                    avgLoss_s = totalLoss / rsi_period
+                    rsiavgloss.push(avgLoss_s)
+                } else {
+                    if (diff > 0) {
+                        avgGain_s = ((rsiavggain[iGain] * (rsi_period - 1)) + diff) / rsi_period
+                        rsiavggain.push(avgGain_s)
+                        iGain++
+                    } else {
+                        avgLoss_s = ((rsiavgloss[iLoss] * (rsi_period - 1)) + Math.abs(diff)) / rsi_period
+                        rsiavgloss.push(avgLoss_s)
+                        iLoss++
+                    }
+                }
+
                 totalGain = _.sum(rsigains)
                 avgGain = totalGain / rsi_period
-                //rsigains.length > 0 ? avgGain = totalGain / rsigains.length : avgGain = 0
-                rsiavggain.push(avgGain)
 
                 totalLoss = _.sum(rsilosses)
                 avgLoss = totalLoss / rsi_period
-                //rsilosses.length > 0 ? avgLoss = totalLoss / rsilosses.length : avgLoss = 0
-                rsiavgloss.push(avgLoss)
 
-                let RS
                 avgLoss > 0 ? RS = (avgGain / avgLoss) : RS = 0
-                let RSI = 100 - (100 / (1 + RS))
+                RSI = 100 - (100 / (1 + RS))
                 rsiarray.push(RSI)
+
+                RS_s = avgGain_s / avgLoss_s
+                RSI_s = 100 - (100 / (1 + RS_s))
+                rsi_sarray.push(RSI_s)
             }
 
             // Moving Averages and Beyond!
@@ -303,6 +326,8 @@ function PolygonTest() {
             sma5prices.push(current)
             sma12prices.push(current)
             sma26prices.push(current)
+            sma50prices.push(current)
+            sma100prices.push(current)
             sma200prices.push(current)
 
             // SMA 5 Calculation
@@ -337,6 +362,28 @@ function PolygonTest() {
                 SMA26 = 0
             }
             sma26array.push(SMA26)
+
+            // SMA 50 Calculation
+            let SMA50
+            if (i2 >= 49) {
+                let sma50Sum = _.sum(sma50prices)
+                sma50prices.shift()
+                SMA50 = sma50Sum / 50
+            } else {
+                SMA50 = 0
+            }
+            sma50array.push(SMA50)
+
+            // SMA 100 Calculation
+            let SMA100
+            if (i2 >= 99) {
+                let sma100Sum = _.sum(sma100prices)
+                sma100prices.shift()
+                SMA100 = sma100Sum / 100
+            } else {
+                SMA100 = 0
+            }
+            sma100array.push(SMA100)
 
             // SMA 200 Calculation
             let SMA200
@@ -409,7 +456,13 @@ function PolygonTest() {
         let price_result
         let pricegap_result
         let rsi_result
+        let rsi_s_result
         let sma_result
+        let sma5_result
+        let sma12_result
+        let sma26_result
+        let sma50_result
+        let sma100_result
         let sma200_result // TODO put this in sma_result!!
         let ema12_result
         let ema26_result
@@ -428,16 +481,19 @@ function PolygonTest() {
         pricearray.reverse()
         pricegap.reverse()
         rsiarray.reverse()
+        rsi_sarray.reverse()
         smaarray.reverse() // TODO put all SMAs in here!
         sma5array.reverse()
         sma12array.reverse()
         sma26array.reverse()
+        sma50array.reverse()
+        sma100array.reverse()
         sma200array.reverse()
         ema12array.reverse()
         ema26array.reverse()
         macdarray.reverse()
         incrementdatecleanup.reverse()
-        //console.log(rsiarray)
+        //console.log(rsi_sarray)
         Object.entries(dates).map(date => {
             let t = date['1']
             let month = t.getMonth() + 1
@@ -447,16 +503,22 @@ function PolygonTest() {
             price_result = pricearray[resulti]
             pricegap_result = pricegap[resulti]
             rsi_result = rsiarray[resulti]
+            rsi_s_result = rsi_sarray[resulti]
+            sma5_result = sma5array[resulti]
+            sma12_result = sma12array[resulti]
+            sma26_result = sma26array[resulti]
+            sma50_result = sma50array[resulti]
+            sma100_result = sma100array[resulti]
             sma200_result = sma200array[resulti]
             ema12_result = ema12array[resulti]
             ema26_result = ema26array[resulti]
             macd_result = macdarray[resulti]
 
-            TIresult.push({date:result_date,price:price_result,gap:pricegap_result,rsi:rsi_result,sma200:sma200_result,ema12:ema12_result,ema26:ema26_result,macd:macd_result['macd'],macdsig:macd_result['sig']})
+            TIresult.push({date:result_date,price:price_result,gap:pricegap_result,rsi:rsi_result,rsi_s:rsi_s_result,sma200:sma200_result,ema12:ema12_result,ema26:ema26_result,macd:macd_result['macd'],macdsig:macd_result['sig'],sma5:sma5_result,sma12:sma12_result,sma26:sma26_result,sma50:sma50_result,sma100:sma100_result})
             ii++
             resulti--
         })
-        // Reverse array to sort newest to oldest
+        // OLD - Reverse array to sort newest to oldest
         //TIresult.reverse()
         //console.log(TIresult)
         return new Promise((resolve, reject) => {
@@ -465,9 +527,49 @@ function PolygonTest() {
     }
     // END TI()
 
+    // NOT USED - FUTURE WORK!
+    function RSI(props) {
+        // TODO pull RSI calculations out of TI()
+    }
+    function MAs(props) {
+        // TODO pull SMA, EMA, any other MA calculations out of TI()
+    }
+    function otherTI(props) {
+        // TODO pull future/other calculations out of TI()
+    }
+
+    // onClick function to render the UL with initial LI per stock after data has been pulled
+    // and TI calculations completed
+    function renderStockData() {
+        const stockcontent = (
+            <ul className={"algoDefaultUL stocksUL"}>
+                {stocks.length > 0 ? Object.entries(stocks).map(item => {
+                    if(typeof item[1] !== 'undefined') {
+                        let currentprice
+                        let tick = item[1]['fields']['TICKER']
+                        if (currentBar[tick] !== 'undefined') {
+                            if (currentBar[tick].length > 0) {
+                                currentprice = '$'+currentBar[tick][0]['c']
+                            } else {
+                                currentprice = 'NA'
+                            }
+                        } else {
+                            currentprice = 'NA'
+                        }
+                        return <li className={'algoStock'} key={'renderstocks'+ tick} id={'renderstocks'+ tick}><a className={'algoTicker'} onClick={() => renderTI(tick)}>{tick+' - Price: '+currentprice}</a>{'  (Click to load charts)'}<br/><div className={'algoCharts'} id={tick + 'TIdata'}></div></li>
+                    }
+                }) : 'Loading Stocks...'}
+            </ul>
+        )
+        ReactDOM.render(stockcontent,document.getElementById('stockdata'))
+    }
+    // END renderStockData()
+
+    // onClick function to render charts with TI data for individual or ALL stocks
     function renderTI(ticker) {
         let result = []
         let element
+        // Render charts for single stock ticker
         if (ticker) {
             element = ticker + 'TIdata'
             let si = _.findKey(stocksTI, ['stock',ticker])
@@ -496,6 +598,7 @@ function PolygonTest() {
                             <Tooltip />
                             <Legend />
                             <Line type="monotone" dataKey="rsi" stroke="#4038E7" />
+                            <Line type="monotone" dataKey="rsi_s" stroke="#4038E7" />
                         </LineChart>
                         <LineChart width={400} height={300} data={stocksTI[si]['ti']} margin={{
                             top: 5, right: 30, left: 20, bottom: 5,
@@ -508,6 +611,21 @@ function PolygonTest() {
                             <Line type="monotone" dataKey="macd" stroke="#4527A0" />
                             <Line type="monotone" dataKey="macdsig" stroke="#FFA000" />
                         </LineChart>
+                        <LineChart width={400} height={300} data={stocksTI[si]['ti']} margin={{
+                            top: 5, right: 30, left: 20, bottom: 5,
+                        }}
+                        >
+                            <XAxis dataKey="date"  />
+                            <YAxis />
+                            <Tooltip />
+                            <Legend />
+                            <Line type="monotone" dataKey="sma5" stroke="#C0392B" />
+                            <Line type="monotone" dataKey="sma12" stroke="#8E44AD" />
+                            <Line type="monotone" dataKey="sma26" stroke="#2980B9" />
+                            <Line type="monotone" dataKey="sma50" stroke="#16A085" />
+                            <Line type="monotone" dataKey="sma100" stroke="#F1C40F" />
+                            <Line type="monotone" dataKey="sma200" stroke="#039BE5" />
+                        </LineChart>
                         <div className={'clear'}></div>
                     </div>
                 )
@@ -515,7 +633,7 @@ function PolygonTest() {
             } else {
                 result.push("The stock was loaded from Airtable but not included in the Alpaca data query, charts couldn't be generated.")
             }
-        } else {
+        } else { // Render ALL charts for ALL stock tickers
             element = 'techindicators'
             result.push('<ul>')
             Object.entries(stocksTI).map(bar => {
@@ -545,6 +663,7 @@ function PolygonTest() {
                             <Tooltip />
                             <Legend />
                             <Line type="monotone" dataKey="rsi" stroke="#4038E7" />
+                            <Line type="monotone" dataKey="rsi_s" stroke="#4038E7" />
                         </LineChart>
                         <LineChart width={400} height={300} data={bar[1]['ti']} margin={{
                             top: 5, right: 30, left: 20, bottom: 5,
@@ -579,34 +698,6 @@ function PolygonTest() {
     }
     // END renderTI()
 
-    function RSI(props) {
-        // TODO pull RSI calculation out of TI()
-    }
-
-    function renderStockData() {
-        const stockcontent = (
-            <ul className={"algoDefaultUL stocksUL"}>
-                {stocks.length > 0 ? Object.entries(stocks).map(item => {
-                    if(typeof item[1] !== 'undefined') {
-                        let currentprice
-                        let tick = item[1]['fields']['TICKER']
-                        if (currentBar[tick] !== 'undefined') {
-                            if (currentBar[tick].length > 0) {
-                                currentprice = '$'+currentBar[tick][0]['c']
-                            } else {
-                                currentprice = 'NA'
-                            }
-                        } else {
-                            currentprice = 'NA'
-                        }
-                        return <li className={'algoStock'} key={'renderstocks'+ tick} id={'renderstocks'+ tick}><a className={'algoTicker'} onClick={() => renderTI(tick)}>{tick+' - Price: '+currentprice}</a>{'(Click load charts)'}<br/><div className={'algoCharts'} id={tick + 'TIdata'}></div></li>
-                    }
-                }) : 'Loading Stocks...'}
-            </ul>
-        )
-        ReactDOM.render(stockcontent,document.getElementById('stockdata'))
-    }
-
     function renderPage() {
         console.log('renderPage()')
         const page = []
@@ -633,6 +724,7 @@ function PolygonTest() {
         return page
     }
 
+    // Logo and menu in left sidebar
     const LeftSide = (props) => {
         return <div id={'LeftSide'}>
             <div id={'AlgoLogo'}><h1>Algo Trading</h1></div>
@@ -647,6 +739,7 @@ function PolygonTest() {
         </div>
     }
 
+    // Main content - div placeholders to be hydrated
     const RightSide = (props) => {
         return <div id={'RightSide'}>
             <div>
@@ -667,7 +760,9 @@ function PolygonTest() {
             {/*renderPage()*/}
         </div>
     )
-}
+} // END PolygonTest() - primary/parent function and default export
+
+// TODO:
 
 // Run basic calculations, and show all work on page (build logger for objects vs. text vs. arrays, etc.)
 // Show weights and tech indicators
@@ -675,6 +770,8 @@ function PolygonTest() {
 
 // Determine what data to store - create form for updating DB! (manual to start and for editing later,
 // but eventually automatic....)
+// Once historic data has been pulled (target for now 1yr, but eventually why not store 5yr+?) note
+// most recent date and only pull newer bars, then use combo for TI calcs...
 
 // Provide result, targets, and order info (buy, short, sell, do nothing, do something if/when....)
 // Manual for now, prepare for auto-orders....
