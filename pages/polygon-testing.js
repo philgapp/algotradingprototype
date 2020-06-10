@@ -11,6 +11,7 @@ function PolygonTest() {
     // STATE
     const [barsToPull, setBarsToPull] = useState(350) // Number of bars to pull from Alpaca API
     const [barSize, setBarSize] = useState('1D') // 1Min (or minute), 5Min, 15Min, 1D (or day)
+    const [alpacastocks, setAlpacastocks] = useState([]); // Array of stocks to load Alpaca data
     const [stocks, setStocks] = useState([]); // Array of stocks pulled from Airtable
     const [bars, setBars] = useState([]); // All price data for all stocks, used for TI calcs
     const [currentBar, setCurrentBar] = useState([]); // Last 1Min bar for all stocks, for current price data
@@ -34,14 +35,18 @@ function PolygonTest() {
     // Used to load initial data, but
     // TODO requires attention, fewer button clicks, better promise handling, more dynamic
     useEffect(() => {
-        let alpacastocks = [] // Used to pull Alpaca data for stocks pulled from Airtable
+        // TODO build out alpacastocks to take user input (i.e. load Robinhood watchlist, custom watchlist, or specific stock, etc.)
+        /*
         if(stocks.length > 0) {
+            let tempstocks = []
             stocks.map(stock => {
-                alpacastocks.push(stock['fields']['TICKER'])
+                tempstocks.push(stock['fields']['TICKER'])
             })
+            setAlpacastocks(tempstocks)
         } else {
-            alpacastocks = 'TSLA'
-        }
+         */
+            setAlpacastocks(['TSLA'])
+        //}
         const fetchData = async () => {
             await Airtable.retrieveRecords('stocks')
                 .then(response => {
@@ -49,7 +54,8 @@ function PolygonTest() {
                         setStocks(response)
                     //},1000)
                 })
-            await Airtable.retrieveRecords('settings')
+            // For development currently not loading user settings from Airtable, more planning/dev required first
+            /*await Airtable.retrieveRecords('settings')
                 .then(response => {
                     //setTimeout(function() {
                     setSettings(response)
@@ -58,44 +64,48 @@ function PolygonTest() {
                         await logSettings(response)
                     }
                     testFix()
-                })
-            await Alpaca.getBars(barSize, [alpacastocks], {limit:barsToPull, end:today})
-                .then(response => {
-                    //setTimeout(function() {
-                    const testFix = async () => {
-                        await logBars(response)
-                        /*.then(newr => {
-                            setTimeout(function() {
-                                //setBars(newr)
-                                //setBars14(newr)
-                            }, 1000)
-                        })*/
-                    }
-                    testFix()
-                    //},1000)
-                })
-            await Alpaca.getBars('1Min', [alpacastocks], {limit:1})
-                .then(response => {
-                    //setTimeout(function() {
-                    const testFix = async () => {
-                        await logCurrent1MinBar(response)
-                        /*.then(newr => {
-                            setTimeout(function() {
-                                //setBars(newr)
-                                //setBars14(newr)
-                            }, 1000)
-                        })*/
-                    }
-                    testFix()
-                    //},1000)
-                })
+                })*/
+            if(alpacastocks.length > 0) { // Only pull Alpaca data when we have one or more stocks for request
+                await Alpaca.getBars(barSize, [alpacastocks], {limit: barsToPull, end: today})
+                    .then(response => {
+                        //setTimeout(function() {
+                        const testFix = async () => {
+                            await logBars(response)
+                                .then(() => {
+                                    calculateStocksTI()
+                                })
+                            /*.then(newr => {
+                                setTimeout(function() {
+                                    //setBars(newr)
+                                    //setBars14(newr)
+                                }, 1000)
+                            })*/
+                        }
+                        testFix()
+                        //},1000)
+                    })
+                await Alpaca.getBars('1Min', [alpacastocks], {limit: 1})
+                    .then(response => {
+                        //setTimeout(function() {
+                        const testFix = async () => {
+                            await logCurrent1MinBar(response)
+                            /*.then(newr => {
+                                setTimeout(function() {
+                                    //setBars(newr)
+                                    //setBars14(newr)
+                                }, 1000)
+                            })*/
+                        }
+                        testFix()
+                        //},1000)
+                    })
+            }
         }
         //console.log(bars)
         //console.log(bars14)
         //console.log(currentBar)
 
         fetchData()
-        calculateStocksTI()
         //renderPage()
     },[reload]);
     // END useEffect()
@@ -181,6 +191,9 @@ function PolygonTest() {
         // NOTE: Other SMAs are hardcoded as of 28 May 2020
         let ema12_period = 12//ema ? ema : 12
         let ema26_period = 26
+        let stoch_fast_period = 5
+        let stoch_medium_period = 14
+        let stoch_long_period = 21
         // EMA %
         // 50% would be used for a 3-day exponential moving average (16.6667 ratio 50/3)
         // 40 7 days 5.7142
@@ -189,14 +202,13 @@ function PolygonTest() {
         // 5% 109 days 0.04587 ratio
         // 1% is used for a 199-day exponential moving average. (0.00502 ratio 1/200)
         // So our % = ema_period
-        let ema12_percentage = (2 / (ema12_period + 1) )
-        let ema26_percentage = (2 / (ema26_period + 1) )
+        let ema12_percentage = 2 / (ema12_period + 1)
+        let ema26_percentage = 2 / (ema26_period + 1)
         let pricetime
         let previous
         let diff
         let pricearray = []
         let pricegap = []
-        let rsioldest = []
         let rsigains = []
         let rsilosses = []
         let smaprices = []
@@ -206,18 +218,24 @@ function PolygonTest() {
         let sma50prices = []
         let sma100prices = []
         let sma200prices = []
-        let rsiarray = []
-        let rsi_sarray = []
+        let rsi_sma_array = []
+        let rsi_ema_array = []
+        let rsi_wilder_array = []
         let totalLoss
         let totalGain
         let avgGain
         let avgLoss
-        let avgGain_s
-        let avgLoss_s
+        let rsi_ema_smoothing = 2 / (rsi_period + 1)
+        let avgGain_ema
+        let avgLoss_ema
+        let avgGain_wilder
+        let avgLoss_wilder
         let iGain = 0
         let iLoss = 0
         let rsiavggain = []
         let rsiavgloss = []
+        let rsiavgemagain = []
+        let rsiavgemaloss = []
         let smaarray = []
         let sma5array = []
         let sma12array = []
@@ -229,6 +247,12 @@ function PolygonTest() {
         let ema26array = []
         let macdarray = []
         let macdsigarray = []
+        let stoch_fast_k_array = []
+        let stoch_medium_k_array = []
+        let stoch_slow_k_array = []
+        let stoch_fast_d_array = []
+        let stoch_medium_d_array = []
+        let stoch_slow_d_array = []
         let dates = []
         let i = 0
         let i2 = 0
@@ -252,59 +276,78 @@ function PolygonTest() {
             previous = current
             i++
 
-            // RSI Calculation (simple and smoothed)
-            let RS
-            let RSI
-            let RS_s
-            let RSI_s
-            // Looped <= RSI period? Then only collect gain and loss data
+            // RSI Calculations
+            let RS_sma // Simple RSI
+            let RSI_sma
+            let RS_ema // EMA-smoothed RSI
+            let RSI_ema
+            let RS_wilder // Wilder-smoothed RSI
+            let RSI_wilder
+
+            // Looped <= RSI period? = only collect gain and loss data
             if (i <= rsi_period && i > 0) {
                 if (diff > 0) {
-                    rsioldest.push(1) // 1 = gain
                     rsigains.push(diff)
+                    rsilosses.push(0)
                 } else {
-                    rsioldest.push(0) // 0 = loss
                     rsilosses.push(Math.abs(diff))
+                    rsigains.push(0)
                 }
 
-            // Past the number of loops = RSI period? Have enough data to calculate initial RSI!
+            // Past the number of loops = RSI period? = enough data to calculate initial RSI!
             } else {
-                if (rsioldest[0] === 1) { // If the oldest element was a gain, remove oldest gain from gains array
-                    rsigains.shift()
-                } else { // Otherwise remove oldest loss from loss array
-                    rsilosses.shift()
-                }
+                // Remove oldest gain and loss from arrays
+                rsigains.shift()
+                rsilosses.shift()
                 // Then push gain or loss to appropriate array
                 if (diff > 0) {
-                    rsioldest.push(1)
                     rsigains.push(diff)
+                    rsilosses.push(0)
                 } else {
-                    rsioldest.push(0)
                     rsilosses.push(Math.abs(diff))
+                    rsigains.push(0)
                 }
-                rsioldest.shift() // Keep track of oldest element, maintaining length = rsi_period
 
-                // After first RSI loop, smooth avgGain_s and avgLoss_s
-                // For smoothing, one loop after the rsi_period store the first avgGain_s and avgLoss_s
+                // After first RSI calculation, smooth avgGain_ema and avgLoss_ema
+                // For smoothing, one loop after the rsi_period store the first avgGain_ema and avgLoss_ema
                 if (i === rsi_period + 1) {
                     totalGain = _.sum(rsigains)
-                    avgGain_s = totalGain / rsi_period
-                    rsiavggain.push(avgGain_s)
+                    avgGain_ema = totalGain / rsi_period
+                    avgGain_wilder = avgGain_ema
+                    rsiavgemagain.push(avgGain_ema)
+                    rsiavggain.push(avgGain_wilder)
 
                     totalLoss = _.sum(rsilosses)
-                    avgLoss_s = totalLoss / rsi_period
-                    rsiavgloss.push(avgLoss_s)
+                    avgLoss_ema = totalLoss / rsi_period
+                    avgLoss_wilder = avgLoss_ema
+                    rsiavgemaloss.push(avgLoss_ema)
+                    rsiavgloss.push(avgLoss_wilder)
                 } else {
                     if (diff > 0) {
-                        avgGain_s = ((rsiavggain[iGain] * (rsi_period - 1)) + diff) / rsi_period
-                        rsiavggain.push(avgGain_s)
+                        // EMA RSI: α * Ut + ( 1 – α ) * AvgUt-1
+                        avgGain_ema = rsi_ema_smoothing * diff + (1 - rsi_ema_smoothing) * (rsiavgemagain[iGain] - 1)
+                        //PREVIOUS FORMULA = ((rsiavggain[iGain] * (rsi_period - 1)) + diff) / rsi_period
+                        rsiavgemagain.push(avgGain_ema)
+
+                        // Wilder: 1/N * Ut + 13/N * AvgUt-1
+                        avgGain_wilder = (1/rsi_period) * diff + (13/rsi_period) * (rsiavggain[iGain] - 1)
+                        rsiavggain.push(avgGain_wilder)
+
                         iGain++
                     } else {
-                        avgLoss_s = ((rsiavgloss[iLoss] * (rsi_period - 1)) + Math.abs(diff)) / rsi_period
-                        rsiavgloss.push(avgLoss_s)
+                        // EMA RSI: α * Dt + ( 1 – α ) * AvgDt-1
+                        avgLoss_ema = rsi_ema_smoothing * Math.abs(diff) + (1 - rsi_ema_smoothing) * (rsiavgemaloss[iLoss] - 1)
+                        //PREVIOUS FORMULA = ((rsiavgloss[iLoss] * (rsi_period - 1)) + diff) / rsi_period
+                        rsiavgemaloss.push(avgLoss_ema)
+
+                        // Wilder: 1/N * Dt + 13/N * AvgDt-1
+                        avgLoss_wilder = (1/rsi_period) * Math.abs(diff) + (13/rsi_period) * (rsiavgloss[iLoss] - 1)
+                        rsiavgloss.push(avgLoss_wilder)
+
                         iLoss++
                     }
                 }
+                //console.log(i)
 
                 totalGain = _.sum(rsigains)
                 avgGain = totalGain / rsi_period
@@ -312,13 +355,28 @@ function PolygonTest() {
                 totalLoss = _.sum(rsilosses)
                 avgLoss = totalLoss / rsi_period
 
-                avgLoss > 0 ? RS = (avgGain / avgLoss) : RS = 0
-                RSI = 100 - (100 / (1 + RS))
-                rsiarray.push(RSI)
+                /*
+                if(i == 350) {
+                    console.log('avgGain = '+avgGain)
+                    console.log('Gain EMA = '+avgGain_ema)
+                    console.log('Gain Wilder = '+avgGain_wilder)
+                    console.log('avgLoss = '+avgLoss)
+                    console.log('Loss EMA = '+avgLoss_ema)
+                    console.log('Loss Wilder = '+avgLoss_wilder)
+                }
+                */
 
-                RS_s = avgGain_s / avgLoss_s
-                RSI_s = 100 - (100 / (1 + RS_s))
-                rsi_sarray.push(RSI_s)
+                avgLoss > 0 ? RS_sma = (avgGain / avgLoss) : RS_sma = 0
+                RSI_sma = 100 - (100 / (1 + RS_sma))
+                rsi_sma_array.push(RSI_sma)
+
+                RS_ema = avgGain_ema / avgLoss_ema
+                RSI_ema = 100 - (100 / (1 + RS_ema))
+                rsi_ema_array.push(RSI_ema)
+
+                RS_wilder = avgGain_wilder / avgLoss_wilder
+                RSI_wilder = 100 - (100 / (1 + RS_wilder))
+                rsi_wilder_array.push(RSI_wilder)
             }
 
             // Moving Averages and Beyond!
@@ -330,27 +388,69 @@ function PolygonTest() {
             sma100prices.push(current)
             sma200prices.push(current)
 
-            // SMA 5 Calculation
+            // STOCHASTIC
+            // CL = Close [today] - Lowest Low [in %K Periods]
+            // HL =Highest High [in %K Periods] - Lowest Low [in %K Periods]
+            // %K = CL / HL *100
+
+            // SMA 5 & Fast Stochastic Calculation
             let SMA5
+            let stoch_fast_k
+            let stoch_fast_d_temp_array
+            let stoch_fast_d
             if (i2 >= 4) {
                 let sma5Sum = _.sum(sma5prices)
+                console.log(sma5prices.length)
+                let stoch_low = _.min(sma5prices)
+                let stoch_high = _.max(sma5prices)
+                let cl = current - stoch_low
+                let hl = stoch_high - stoch_low
+                stoch_fast_k = cl / hl * 100
+                stoch_fast_d_temp_array = stoch_fast_k_array.slice(Math.max(stoch_fast_k_array.length - 3, 0))
+                let stoch_d_sum = _.sum(stoch_fast_d_temp_array)
+                //console.log(stoch_fast_d_temp_array.length)
+                stoch_fast_d = stoch_d_sum / 3
                 sma5prices.shift()
                 SMA5 = sma5Sum / 5
+                /*if(i == 350) {
+                    console.log('stoch_fast_k_cl = '+cl)
+                    console.log('stoch_fast_k_hl = '+hl)
+                    console.log('stoch_fast_k = '+stoch_fast_k)
+                }*/
             } else {
                 SMA5 = 0
+                stoch_fast_k = 0
+                stoch_fast_d = 0
             }
             sma5array.push(SMA5)
+            stoch_fast_k_array.push(stoch_fast_k)
+            stoch_fast_d_array.push(stoch_fast_d)
 
             // SMA 12 Calculation
             let SMA12
+            let stoch_medium_k
+            let stoch_medium_d_temp_array
+            let stoch_medium_d
             if (i2 >= 11) {
                 let sma12Sum = _.sum(sma12prices)
+                let stoch_low = _.min(sma12prices)
+                let stoch_high = _.max(sma12prices)
+                let cl = current - stoch_low
+                let hl = stoch_high - stoch_low
+                stoch_medium_k = cl / hl * 100
+                stoch_medium_d_temp_array = stoch_medium_k_array.slice(Math.max(stoch_medium_k_array.length - 3, 0))
+                let stoch_d_sum = _.sum(stoch_medium_d_temp_array)
+                stoch_medium_d = stoch_d_sum / 3
                 sma12prices.shift()
                 SMA12 = sma12Sum / 12
             } else {
                 SMA12 = 0
+                stoch_medium_k = 0
+                stoch_medium_d = 0
             }
             sma12array.push(SMA12)
+            stoch_medium_k_array.push(stoch_medium_k)
+            stoch_medium_d_array.push(stoch_medium_d)
 
             // SMA 26 Calculation
             let SMA26
@@ -446,6 +546,7 @@ function PolygonTest() {
                 macdsig = (macdtemp * (2 / (9 + 1))) + ((macdarray[(i2 - 27)]['sig']) * (1 - (2 / (9 + 1))))
                 macdarray.push({macd: macdtemp, sig: macdsig})
             }
+
             i2++
         })
 
@@ -455,8 +556,9 @@ function PolygonTest() {
         let result_date
         let price_result
         let pricegap_result
-        let rsi_result
-        let rsi_s_result
+        let rsi_sma_result
+        let rsi_ema_result
+        let rsi_wilder_result
         let sma_result
         let sma5_result
         let sma12_result
@@ -467,6 +569,10 @@ function PolygonTest() {
         let ema12_result
         let ema26_result
         let macd_result
+        let stoch_fast_k_result
+        let stoch_fast_d_result
+        let stoch_medium_k_result
+        let stoch_medium_d_result
         let macdsig_result // Trying to use array for both MACD and MACD Signal in macd_result
 
         // Cut dates down to just one month of data (testing, to clean up charts)
@@ -480,8 +586,9 @@ function PolygonTest() {
         }
         pricearray.reverse()
         pricegap.reverse()
-        rsiarray.reverse()
-        rsi_sarray.reverse()
+        rsi_sma_array.reverse()
+        rsi_ema_array.reverse()
+        rsi_wilder_array.reverse()
         smaarray.reverse() // TODO put all SMAs in here!
         sma5array.reverse()
         sma12array.reverse()
@@ -492,6 +599,10 @@ function PolygonTest() {
         ema12array.reverse()
         ema26array.reverse()
         macdarray.reverse()
+        stoch_fast_k_array.reverse()
+        stoch_fast_d_array.reverse()
+        stoch_medium_k_array.reverse()
+        stoch_medium_d_array.reverse()
         incrementdatecleanup.reverse()
         //console.log(rsi_sarray)
         Object.entries(dates).map(date => {
@@ -502,8 +613,9 @@ function PolygonTest() {
             result_date = month + '/' + thisdate + '/' + year
             price_result = pricearray[resulti]
             pricegap_result = pricegap[resulti]
-            rsi_result = rsiarray[resulti]
-            rsi_s_result = rsi_sarray[resulti]
+            rsi_sma_result = rsi_sma_array[resulti]
+            rsi_ema_result = rsi_ema_array[resulti]
+            rsi_wilder_result = rsi_wilder_array[resulti]
             sma5_result = sma5array[resulti]
             sma12_result = sma12array[resulti]
             sma26_result = sma26array[resulti]
@@ -513,8 +625,12 @@ function PolygonTest() {
             ema12_result = ema12array[resulti]
             ema26_result = ema26array[resulti]
             macd_result = macdarray[resulti]
+            stoch_fast_k_result = stoch_fast_k_array[resulti]
+            stoch_fast_d_result = stoch_fast_d_array[resulti]
+            stoch_medium_k_result = stoch_medium_k_array[resulti]
+            stoch_medium_d_result = stoch_medium_d_array[resulti]
 
-            TIresult.push({date:result_date,price:price_result,gap:pricegap_result,rsi:rsi_result,rsi_s:rsi_s_result,sma200:sma200_result,ema12:ema12_result,ema26:ema26_result,macd:macd_result['macd'],macdsig:macd_result['sig'],sma5:sma5_result,sma12:sma12_result,sma26:sma26_result,sma50:sma50_result,sma100:sma100_result})
+            TIresult.push({date:result_date,price:price_result,gap:pricegap_result,rsi_sma:rsi_sma_result,rsi_ema:rsi_ema_result,rsi_wilder:rsi_wilder_result,sma200:sma200_result,ema12:ema12_result,ema26:ema26_result,macd:macd_result['macd'],macdsig:macd_result['sig'],sma5:sma5_result,sma12:sma12_result,sma26:sma26_result,sma50:sma50_result,sma100:sma100_result,stoch_fast_k:stoch_fast_k_result,stoch_fast_d:stoch_fast_d_result,stoch_medium_k:stoch_medium_k_result,stoch_medium_d:stoch_medium_d_result})
             ii++
             resulti--
         })
@@ -543,22 +659,35 @@ function PolygonTest() {
     function renderStockData() {
         const stockcontent = (
             <ul className={"algoDefaultUL stocksUL"}>
-                {stocks.length > 0 ? Object.entries(stocks).map(item => {
-                    if(typeof item[1] !== 'undefined') {
-                        let currentprice
-                        let tick = item[1]['fields']['TICKER']
-                        if (currentBar[tick] !== 'undefined') {
-                            if (currentBar[tick].length > 0) {
-                                currentprice = '$'+currentBar[tick][0]['c']
-                            } else {
-                                currentprice = 'NA'
-                            }
-                        } else {
-                            currentprice = 'NA'
-                        }
+                {(() => {
+                    let tick
+                    let currentprice
+                    if (alpacastocks.length === 1) {
+                        tick = alpacastocks[0]
+                        currentprice = '$'+currentBar[tick][0]['c']
                         return <li className={'algoStock'} key={'renderstocks'+ tick} id={'renderstocks'+ tick}><a className={'algoTicker'} onClick={() => renderTI(tick)}>{tick+' - Price: '+currentprice}</a>{'  (Click to load charts)'}<br/><div className={'algoCharts'} id={tick + 'TIdata'}></div></li>
+                    } else {
+                        if (stocks.length > 0) {
+                            Object.entries(stocks).map(item => {
+                                if(typeof item[1] !== 'undefined') {
+                                    tick = item[1]['fields']['TICKER']
+                                    if (currentBar[tick] !== 'undefined') {
+                                        if (currentBar[tick].length > 0) {
+                                            currentprice = '$'+currentBar[tick][0]['c']
+                                        } else {
+                                            currentprice = 'NA'
+                                        }
+                                    } else {
+                                        currentprice = 'NA'
+                                    }
+                                    return <li className={'algoStock'} key={'renderstocks'+ tick} id={'renderstocks'+ tick}><a className={'algoTicker'} onClick={() => renderTI(tick)}>{tick+' - Price: '+currentprice}</a>{'  (Click to load charts)'}<br/><div className={'algoCharts'} id={tick + 'TIdata'}></div></li>
+                                }
+                            })
+                        } else {
+                            return 'Loading Stocks...'
+                        }
                     }
-                }) : 'Loading Stocks...'}
+                })()}
             </ul>
         )
         ReactDOM.render(stockcontent,document.getElementById('stockdata'))
@@ -597,8 +726,9 @@ function PolygonTest() {
                             <YAxis />
                             <Tooltip />
                             <Legend />
-                            <Line type="monotone" dataKey="rsi" stroke="#4038E7" />
-                            <Line type="monotone" dataKey="rsi_s" stroke="#4038E7" />
+                            <Line type="monotone" dataKey="rsi_sma" stroke="#F1C40F" />
+                            <Line type="monotone" dataKey="rsi_ema" stroke="#C0392B" />
+                            <Line type="monotone" dataKey="rsi_wilder" stroke="#27AE60" />
                         </LineChart>
                         <LineChart width={400} height={300} data={stocksTI[si]['ti']} margin={{
                             top: 5, right: 30, left: 20, bottom: 5,
@@ -610,6 +740,28 @@ function PolygonTest() {
                             <Legend />
                             <Line type="monotone" dataKey="macd" stroke="#4527A0" />
                             <Line type="monotone" dataKey="macdsig" stroke="#FFA000" />
+                        </LineChart>
+                        <LineChart width={400} height={300} data={stocksTI[si]['ti']} margin={{
+                            top: 5, right: 30, left: 20, bottom: 5,
+                        }}
+                        >
+                            <XAxis dataKey="date"  />
+                            <YAxis />
+                            <Tooltip />
+                            <Legend />
+                            <Line type="monotone" dataKey="stoch_fast_k" stroke="#4527A0" />
+                            <Line type="monotone" dataKey="stoch_fast_d" stroke="#FFA000" />
+                        </LineChart>
+                        <LineChart width={400} height={300} data={stocksTI[si]['ti']} margin={{
+                            top: 5, right: 30, left: 20, bottom: 5,
+                        }}
+                        >
+                            <XAxis dataKey="date"  />
+                            <YAxis />
+                            <Tooltip />
+                            <Legend />
+                            <Line type="monotone" dataKey="stoch_medium_k" stroke="#4527A0" />
+                            <Line type="monotone" dataKey="stoch_medium_d" stroke="#FFA000" />
                         </LineChart>
                         <LineChart width={400} height={300} data={stocksTI[si]['ti']} margin={{
                             top: 5, right: 30, left: 20, bottom: 5,
@@ -731,7 +883,7 @@ function PolygonTest() {
             <div id={'AlgoMainMenu'}>
                 <button id={'reloadPage'} onClick={() => reloadPage(reload)} value={'Reload All Data'}>Reload All Data</button>
                 <p>Clears page and requests data from Airtable and Alpaca.</p>
-                <button onClick={()=>renderStockData()}>Load Stocks from Airtable</button>
+                <button onClick={()=>renderStockData()}>Display Stock Data</button>
                 <p>Lists the stocks pulled from Airtable. Click a stock to see price and current technical data below the its name.</p>
                 <button onClick={()=>renderTI()}>Calculate Technicals for ALL Stocks (in DB, could take some time, may have to run twice) </button>
                 <p>Primarily used in development, this will calculate and render the charts for ALL stocks pulled from Airtable. (This occurs below the other stock list, TODO connect both for similar UX)</p>
@@ -744,6 +896,7 @@ function PolygonTest() {
         return <div id={'RightSide'}>
             <div>
             <h1>Base Algorithm Testing, Development and Showcase</h1>
+            <p className={'main'}>Currently must use 'Reload All Data' twice, then 'Display Stock Data'.</p>
             <p className={'main'}>To display in-progress work on data structures, calculating technical indicators, weighting based on user settings, sub-algos to find optimal patterns, and all logic leading up to recommending (and then placing) winning orders/trades. Additionally this will be the working area for building reliability indicators and the base AI to constantly determine more ideal, lower risk, higher return trades.</p>
             <div id={'MainContent'}>
                 <div id={'stockdata'}></div>
