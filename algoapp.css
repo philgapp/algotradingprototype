@@ -37,8 +37,20 @@ ul.stocksUL li div.algoCharts {
     padding-top:2%;
 }
 
+h3.chart-header {
+    font-size: 1em;
+    font-weight: normal;
+    text-decoration: underline;
+    float:left;
+    padding:0 0 3% 8%;
+}
+
 div.recharts-wrapper {
     float: left;
+}
+
+div.recharts-legend-wrapper {
+    padding:1% 0 2% 0;
 }
 
 li.recharts-legend-item {

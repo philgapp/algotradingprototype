@@ -400,15 +400,20 @@ function PolygonTest() {
             let stoch_fast_d
             if (i2 >= 4) {
                 let sma5Sum = _.sum(sma5prices)
-                console.log(sma5prices.length)
+                console.log('sma5prices')
+                console.log(sma5prices)
                 let stoch_low = _.min(sma5prices)
                 let stoch_high = _.max(sma5prices)
+                console.log('stoch low and high')
+                console.log(stoch_low)
+                console.log(stoch_high)
                 let cl = current - stoch_low
                 let hl = stoch_high - stoch_low
                 stoch_fast_k = cl / hl * 100
-                stoch_fast_d_temp_array = stoch_fast_k_array.slice(Math.max(stoch_fast_k_array.length - 3, 0))
+                console.log('fast k')
+                console.log(stoch_fast_k)
+                stoch_fast_d_temp_array = stoch_fast_k_array.slice(-3, stoch_fast_k_array.length)
                 let stoch_d_sum = _.sum(stoch_fast_d_temp_array)
-                //console.log(stoch_fast_d_temp_array.length)
                 stoch_fast_d = stoch_d_sum / 3
                 sma5prices.shift()
                 SMA5 = sma5Sum / 5
@@ -438,7 +443,7 @@ function PolygonTest() {
                 let cl = current - stoch_low
                 let hl = stoch_high - stoch_low
                 stoch_medium_k = cl / hl * 100
-                stoch_medium_d_temp_array = stoch_medium_k_array.slice(Math.max(stoch_medium_k_array.length - 3, 0))
+                stoch_medium_d_temp_array = stoch_medium_k_array.slice(-3, stoch_medium_k_array.length)
                 let stoch_d_sum = _.sum(stoch_medium_d_temp_array)
                 stoch_medium_d = stoch_d_sum / 3
                 sma12prices.shift()
@@ -665,7 +670,7 @@ function PolygonTest() {
                     if (alpacastocks.length === 1) {
                         tick = alpacastocks[0]
                         currentprice = '$'+currentBar[tick][0]['c']
-                        return <li className={'algoStock'} key={'renderstocks'+ tick} id={'renderstocks'+ tick}><a className={'algoTicker'} onClick={() => renderTI(tick)}>{tick+' - Price: '+currentprice}</a>{'  (Click to load charts)'}<br/><div className={'algoCharts'} id={tick + 'TIdata'}></div></li>
+                        return <li className={'algoStock'} key={'renderstocks'+ tick} id={'renderstocks'+ tick}><a className={'algoTicker'} onClick={() => renderTI(tick)}>{tick+' - Last 1min Closing Price: '+currentprice+' (Click to load charts)'}</a><br/><div className={'algoCharts'} id={tick + 'TIdata'}></div></li>
                     } else {
                         if (stocks.length > 0) {
                             Object.entries(stocks).map(item => {
@@ -680,7 +685,7 @@ function PolygonTest() {
                                     } else {
                                         currentprice = 'NA'
                                     }
-                                    return <li className={'algoStock'} key={'renderstocks'+ tick} id={'renderstocks'+ tick}><a className={'algoTicker'} onClick={() => renderTI(tick)}>{tick+' - Price: '+currentprice}</a>{'  (Click to load charts)'}<br/><div className={'algoCharts'} id={tick + 'TIdata'}></div></li>
+                                    return <li className={'algoStock'} key={'renderstocks'+ tick} id={'renderstocks'+ tick}><a className={'algoTicker'} onClick={() => renderTI(tick)}>{tick+' - Last 1min Closing Price: '+currentprice+' (Click to load charts)'}</a><br/><div className={'algoCharts'} id={tick + 'TIdata'}></div></li>
                                 }
                             })
                         } else {
@@ -705,7 +710,8 @@ function PolygonTest() {
             if (si != 'undefined') {
                 const renderLineChart1 = (
                     <div>
-                        <LineChart width={400} height={300} data={stocksTI[si]['ti']} margin={{
+                        <h3 className={'chart-header'}>Closing Price, Exponential Moving Avg. 12 & 26 (EMA) and Simple Moving Avg. 200 (SMA)</h3>
+                        <LineChart width={600} height={300} data={stocksTI[si]['ti']} margin={{
                             top: 5, right: 30, left: 20, bottom: 5,
                         }}
                         >
@@ -718,7 +724,8 @@ function PolygonTest() {
                             <Line type="monotone" dataKey="ema26" stroke="#1B5E20" />
                             <Line type="monotone" dataKey="price" stroke="#D32F2F" activeDot={{ r: 8 }} />
                         </LineChart>
-                        <LineChart width={400} height={300} data={stocksTI[si]['ti']} margin={{
+                        <h3 className={'chart-header'}>Relative Strength Indicator (RSI - 3 types)</h3>
+                        <LineChart width={600} height={150} data={stocksTI[si]['ti']} margin={{
                             top: 5, right: 30, left: 20, bottom: 5,
                         }}
                         >
@@ -730,7 +737,8 @@ function PolygonTest() {
                             <Line type="monotone" dataKey="rsi_ema" stroke="#C0392B" />
                             <Line type="monotone" dataKey="rsi_wilder" stroke="#27AE60" />
                         </LineChart>
-                        <LineChart width={400} height={300} data={stocksTI[si]['ti']} margin={{
+                        <h3 className={'chart-header'}>Moving Average Convergence Divergence (MACD)</h3>
+                        <LineChart width={600} height={150} data={stocksTI[si]['ti']} margin={{
                             top: 5, right: 30, left: 20, bottom: 5,
                         }}
                         >
@@ -741,7 +749,8 @@ function PolygonTest() {
                             <Line type="monotone" dataKey="macd" stroke="#4527A0" />
                             <Line type="monotone" dataKey="macdsig" stroke="#FFA000" />
                         </LineChart>
-                        <LineChart width={400} height={300} data={stocksTI[si]['ti']} margin={{
+                        <h3 className={'chart-header'}>Stochastics (fast - %K period 5, %d 3)</h3>
+                        <LineChart width={600} height={100} data={stocksTI[si]['ti']} margin={{
                             top: 5, right: 30, left: 20, bottom: 5,
                         }}
                         >
@@ -752,7 +761,8 @@ function PolygonTest() {
                             <Line type="monotone" dataKey="stoch_fast_k" stroke="#4527A0" />
                             <Line type="monotone" dataKey="stoch_fast_d" stroke="#FFA000" />
                         </LineChart>
-                        <LineChart width={400} height={300} data={stocksTI[si]['ti']} margin={{
+                        <h3 className={'chart-header'}>Stochastics (medium - %K period 12, %d 3)</h3>
+                        <LineChart width={600} height={100} data={stocksTI[si]['ti']} margin={{
                             top: 5, right: 30, left: 20, bottom: 5,
                         }}
                         >
@@ -763,7 +773,8 @@ function PolygonTest() {
                             <Line type="monotone" dataKey="stoch_medium_k" stroke="#4527A0" />
                             <Line type="monotone" dataKey="stoch_medium_d" stroke="#FFA000" />
                         </LineChart>
-                        <LineChart width={400} height={300} data={stocksTI[si]['ti']} margin={{
+                        <h3 className={'chart-header'}>SMAs (5, 12, 26, 50, 100, 200)</h3>
+                        <LineChart width={600} height={300} data={stocksTI[si]['ti']} margin={{
                             top: 5, right: 30, left: 20, bottom: 5,
                         }}
                         >
