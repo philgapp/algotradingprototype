@@ -162,7 +162,8 @@ function PolygonTest() {
             //console.log(stock[0])
             TI(stockBars)
                 .then(response => {
-                    allTI.push({stock:stock[0],ti:response})
+                    console.log(response)
+                    allTI.push({stock:stock[0],ti:response,sig:response['sig']})
                 })
         })
         setStocksTI(allTI)
@@ -221,6 +222,7 @@ function PolygonTest() {
         let rsi_sma_array = []
         let rsi_ema_array = []
         let rsi_wilder_array = []
+        let rsi_avg_array = []
         let totalLoss
         let totalGain
         let avgGain
@@ -257,12 +259,50 @@ function PolygonTest() {
         let i = 0
         let i2 = 0
 
+        // Variables for Signal Calculations
+        let allPivotsArray = []
+        let trendArray = []
+        let longTrendArray = []
+        let r2
+        let r1
+        let pivot
+        let s1
+        let s2
+        let dailyTrend
+        let trend
+        let trendStrength
+        let crosses = []
+        let percentChange
+        let changeDirection
+        let tempThreeDayResult
+        let tempWeeklyResult
+        let tempBimonthlyResult
+        let tempMonthlyResult
+        let threeDayResult = []
+        let weeklyResult = []
+        let bimonthlyResult = []
+        let monthlyResult = []
+
         // Calculate Indicators, looping through each bar of data passed as props
         Object.entries(props).map(bar => {
             // Ready to make  dynamic, for now always using closing price of each bar
             pricetime = 'close'
             // Set today to current close price and store in price array
             let current = bar[1][pricetime]
+
+            let dailyHigh = bar[1]['high']
+            let dailyLow = bar[1]['low']
+            let dailyClose = bar[1]['close']
+            let pricesSum = dailyClose + dailyHigh + dailyLow
+            pivot = (pricesSum / 3).toFixed(2)
+            r2 = parseFloat(pivot + (dailyHigh - dailyLow)).toFixed(2)
+            r1 = parseFloat((pivot * 2) - dailyLow).toFixed(2)
+            s1 = parseFloat((pivot * 2) - dailyHigh).toFixed(2)
+            s2 = parseFloat(pivot - (dailyHigh - dailyLow)).toFixed(2)
+            let allPivots = []
+            allPivots.push({p:pivot,r2:r2,r1:r1,s1:s1,s2:s2})
+            allPivotsArray.push(allPivots)
+
             pricearray.push(current)
             // Add date for bar to dates array
             dates.push(bar[1]['date'])
@@ -270,7 +310,164 @@ function PolygonTest() {
             if (previous) {
                 // Difference between bar prices, store 'Gap'
                 diff = (current - previous)
+                let dailyTrendArray = []
+                let dailyStrength = 0
+                if(diff > 0) {
+                    changeDirection = 1
+                    dailyTrend = 1
+                }
+                if(diff < 0) {
+                    changeDirection = 0
+                    dailyTrend = 0
+                }
+                percentChange = ((diff / previous) * 100).toFixed(2)
+                let absPercentChange = Math.abs(percentChange)
+                if(absPercentChange <= 1) dailyStrength = 1
+                if(absPercentChange > 1 && absPercentChange <= 2.5) dailyStrength = 2
+                if(absPercentChange > 2.5 && absPercentChange <= 5) dailyStrength = 3
+                if(absPercentChange > 5 && absPercentChange <= 7.5) dailyStrength = 4
+                if(absPercentChange > 7.5 && absPercentChange <= 10) dailyStrength = 5
+                if(absPercentChange > 10 && absPercentChange <= 12.5) dailyStrength = 6
+                if(absPercentChange > 12.5 && absPercentChange <= 15) dailyStrength = 7
+                if(absPercentChange > 15 && absPercentChange <= 17.5) dailyStrength = 8
+                if(absPercentChange > 17.5 && absPercentChange <= 20) dailyStrength = 9
+                if(absPercentChange > 20) dailyStrength = 10
                 pricegap.push(diff)
+
+                // Calculate Trend and Strength SMAs
+                function testSum(a, b) {
+                    return a + b;
+                }
+                let currentTrendArray = []
+                let fullTrendArray = []
+                if(i >= 3) {
+                    let temp3DayTrendArr = trendArray.slice(-3, trendArray.length)
+                    let temp3DayTrendArray = []
+                    let temp3DayStrengthArray = []
+                    let temp3DayChangeArray = []
+                    Object.entries(temp3DayTrendArr).map(trend => {
+                        temp3DayTrendArray.push(trend[1]['trend'])
+                        temp3DayChangeArray.push(parseFloat(trend[1]['change']))
+                        if(trend[1]['trend'] == 1) {
+                            temp3DayStrengthArray.push(parseFloat(trend[1]['strength']))
+                        } else {
+                            temp3DayStrengthArray.push(-parseFloat(trend[1]['strength']))
+                        }
+                    })
+                    let temp3DayTrendSum = _.sum(temp3DayTrendArray)
+                    let temp3DayStrengthSum = _.sum(temp3DayStrengthArray)
+                    let temp3DayChangeSum = _.sum(temp3DayChangeArray)
+                    let temp3DayTrendAvg = temp3DayTrendSum / 3
+                    let temp3DayStrengthAvg = (temp3DayStrengthSum / 3).toFixed(2)
+                    //let temp3DayChangeAvg = (temp3DayChangeSum / 3).toFixed(2)
+                    let temp3DayTrend
+                    if(temp3DayTrendAvg <= 0.5) {
+                        temp3DayTrend = 0
+                    } else {
+                        temp3DayTrend = 1
+                    }
+                    // Daily Object
+                    tempThreeDayResult = {trend:temp3DayTrend,strength:temp3DayStrengthAvg,change:temp3DayChangeSum}
+                    // Every Daily Object
+                    threeDayResult.push(tempThreeDayResult)
+                    if(i >= 5) {
+                        let tempWeeklyTrendArr = trendArray.slice(-5, trendArray.length)
+                        let tempWeeklyTrendArray = []
+                        let tempWeeklyStrengthArray = []
+                        let tempWeeklyChangeArray = []
+                        Object.entries(tempWeeklyTrendArr).map(trend => {
+                            tempWeeklyTrendArray.push(trend[1]['trend'])
+                            tempWeeklyChangeArray.push(parseFloat(trend[1]['change']))
+                            if(trend[1]['trend'] == 1) {
+                                tempWeeklyStrengthArray.push(parseFloat(trend[1]['strength']))
+                            } else {
+                                tempWeeklyStrengthArray.push(-parseFloat(trend[1]['strength']))
+                            }
+                        })
+                        let tempWeeklyTrendSum = _.sum(tempWeeklyTrendArray)
+                        let tempWeeklyStrengthSum = _.sum(tempWeeklyStrengthArray)
+                        let tempWeeklyChangeSum = _.sum(tempWeeklyChangeArray)
+                        let tempWeeklyTrendAvg = tempWeeklyTrendSum / 5
+                        let tempWeeklyStrengthAvg = (tempWeeklyStrengthSum / 5).toFixed(2)
+                        //let tempWeeklyChangeAvg = (tempWeeklyChangeSum / 5).toFixed(2)
+                        let tempWeeklyTrend
+                        if(tempWeeklyTrendAvg <= 0.5) {
+                            tempWeeklyTrend = 0
+                        } else {
+                            tempWeeklyTrend = 1
+                        }
+                        // Daily Object
+                        tempWeeklyResult = {trend:tempWeeklyTrend,strength:tempWeeklyStrengthAvg,change:tempWeeklyChangeSum}
+                        // Every Daily Object
+                        weeklyResult.push(tempWeeklyResult)
+                        if(i >= 10) {
+                            let tempBimonthlyTrendArr = trendArray.slice(-10, trendArray.length)
+                            let tempBimonthlyTrendArray = []
+                            let tempBimonthlyStrengthArray = []
+                            let tempBimonthlyChangeArray = []
+                            Object.entries(tempBimonthlyTrendArr).map(trend => {
+                                tempBimonthlyTrendArray.push(trend[1]['trend'])
+                                tempBimonthlyChangeArray.push(parseFloat(trend[1]['change']))
+                                if(trend[1]['trend'] == 1) {
+                                    tempBimonthlyStrengthArray.push(parseFloat(trend[1]['strength']))
+                                } else {
+                                    tempBimonthlyStrengthArray.push(-parseFloat(trend[1]['strength']))
+                                }
+                            })
+                            let tempBimonthlyTrendSum = _.sum(tempBimonthlyTrendArray)
+                            let tempBimonthlyStrengthSum = _.sum(tempBimonthlyStrengthArray)
+                            let tempBimonthlyChangeSum = _.sum(tempBimonthlyChangeArray)
+                            let tempBimonthlyTrendAvg = tempBimonthlyTrendSum / 10
+                            let tempBimonthlyStrengthAvg = (tempBimonthlyStrengthSum / 10).toFixed(2)
+                            //let tempBimonthlyChangeAvg = (tempBimonthlyChangeSum / 10).toFixed(2)
+                            let tempBimonthlyTrend
+                            if(tempBimonthlyTrendAvg <= 0.5) {
+                                tempBimonthlyTrend = 0
+                            } else {
+                                tempBimonthlyTrend = 1
+                            }
+                            // Daily Object
+                            tempBimonthlyResult = {trend:tempBimonthlyTrend,strength:tempBimonthlyStrengthAvg,change:tempBimonthlyChangeSum}
+                            // Every Daily Object
+                            bimonthlyResult.push(tempBimonthlyResult)
+                            if(i >= 21) {
+                                let tempMonthlyArr = trendArray.slice(-21, trendArray.length)
+                                let tempMonthlyTrendArray = []
+                                let tempMonthlyStrengthArray = []
+                                let tempMonthlyChangeArray = []
+                                Object.entries(tempMonthlyArr).map(trend => {
+                                    tempMonthlyTrendArray.push(trend[1]['trend'])
+                                    tempMonthlyChangeArray.push(parseFloat(trend[1]['change']))
+                                    if(trend[1]['trend'] == 1) {
+                                        tempMonthlyStrengthArray.push(parseFloat(trend[1]['strength']))
+                                    } else {
+                                        tempMonthlyStrengthArray.push(-parseFloat(trend[1]['strength']))
+                                    }
+                                })
+                                let tempMonthlyTrendSum = _.sum(tempMonthlyTrendArray)
+                                let tempMonthlyStrengthSum = _.sum(tempMonthlyStrengthArray)
+                                let tempMonthlyChangeSum = _.sum(tempMonthlyChangeArray)
+                                let tempMonthlyTrendAvg = tempMonthlyTrendSum / 21
+                                let tempMonthlyStrengthAvg = (tempMonthlyStrengthSum / 21).toFixed(2)
+                                //let tempMonthlyChangeAvg = (tempMonthlyChangeSum / 21).toFixed(2)
+                                let tempMonthlyTrend
+                                if(tempMonthlyTrendAvg <= 0.5) {
+                                    tempMonthlyTrend = 0
+                                } else {
+                                    tempMonthlyTrend = 1
+                                }
+                                // Daily Object
+                                tempMonthlyResult = {trend:tempMonthlyTrend,strength:tempMonthlyStrengthAvg,change:tempMonthlyChangeSum}
+                                // Every Daily Object
+                                weeklyResult.push(tempMonthlyResult)
+                            }
+                        }
+                    }
+                }
+                dailyTrendArray = {dir:changeDirection,strength:dailyStrength,trend:dailyTrend,change:percentChange,threeDay:tempThreeDayResult,weekly:tempWeeklyResult,bimonthly:tempBimonthlyResult,monthly:tempMonthlyResult}
+                trendArray.push(dailyTrendArray)
+                fullTrendArray.push({threeDay:threeDayResult,weekly:weeklyResult,bimonthly:bimonthlyResult,monthly:monthlyResult})
+                //console.log(fullTrendArray) TODO Use for full historic data, perhaps creating averages or other calcs with it too
             }
             // Store current price as previous to use in the next loop and increment i
             previous = current
@@ -377,6 +574,9 @@ function PolygonTest() {
                 RS_wilder = avgGain_wilder / avgLoss_wilder
                 RSI_wilder = 100 - (100 / (1 + RS_wilder))
                 rsi_wilder_array.push(RSI_wilder)
+
+                let avgRSI = (RSI_sma + RSI_ema + RSI_wilder) / 3
+                rsi_avg_array.push(avgRSI)
             }
 
             // Moving Averages and Beyond!
@@ -400,18 +600,11 @@ function PolygonTest() {
             let stoch_fast_d
             if (i2 >= 4) {
                 let sma5Sum = _.sum(sma5prices)
-                console.log('sma5prices')
-                console.log(sma5prices)
                 let stoch_low = _.min(sma5prices)
                 let stoch_high = _.max(sma5prices)
-                console.log('stoch low and high')
-                console.log(stoch_low)
-                console.log(stoch_high)
                 let cl = current - stoch_low
                 let hl = stoch_high - stoch_low
                 stoch_fast_k = cl / hl * 100
-                console.log('fast k')
-                console.log(stoch_fast_k)
                 stoch_fast_d_temp_array = stoch_fast_k_array.slice(-3, stoch_fast_k_array.length)
                 let stoch_d_sum = _.sum(stoch_fast_d_temp_array)
                 stoch_fast_d = stoch_d_sum / 3
@@ -564,6 +757,7 @@ function PolygonTest() {
         let rsi_sma_result
         let rsi_ema_result
         let rsi_wilder_result
+        let rsi_avg_result
         let sma_result
         let sma5_result
         let sma12_result
@@ -580,6 +774,9 @@ function PolygonTest() {
         let stoch_medium_d_result
         let macdsig_result // Trying to use array for both MACD and MACD Signal in macd_result
 
+        let pivots_result
+        let trend_result
+
         // Cut dates down to just one month of data (testing, to clean up charts)
         let datei
         let dateii = 0
@@ -594,6 +791,7 @@ function PolygonTest() {
         rsi_sma_array.reverse()
         rsi_ema_array.reverse()
         rsi_wilder_array.reverse()
+        rsi_avg_array.reverse()
         smaarray.reverse() // TODO put all SMAs in here!
         sma5array.reverse()
         sma12array.reverse()
@@ -609,7 +807,10 @@ function PolygonTest() {
         stoch_medium_k_array.reverse()
         stoch_medium_d_array.reverse()
         incrementdatecleanup.reverse()
+        allPivotsArray.reverse()
+        trendArray.reverse()
         //console.log(rsi_sarray)
+        let testPriceDif
         Object.entries(dates).map(date => {
             let t = date['1']
             let month = t.getMonth() + 1
@@ -621,6 +822,7 @@ function PolygonTest() {
             rsi_sma_result = rsi_sma_array[resulti]
             rsi_ema_result = rsi_ema_array[resulti]
             rsi_wilder_result = rsi_wilder_array[resulti]
+            rsi_avg_result = rsi_avg_array[resulti]
             sma5_result = sma5array[resulti]
             sma12_result = sma12array[resulti]
             sma26_result = sma26array[resulti]
@@ -634,19 +836,44 @@ function PolygonTest() {
             stoch_fast_d_result = stoch_fast_d_array[resulti]
             stoch_medium_k_result = stoch_medium_k_array[resulti]
             stoch_medium_d_result = stoch_medium_d_array[resulti]
+            pivots_result = allPivotsArray[resulti]
+            trend_result = trendArray[resulti]
 
-            TIresult.push({date:result_date,price:price_result,gap:pricegap_result,rsi_sma:rsi_sma_result,rsi_ema:rsi_ema_result,rsi_wilder:rsi_wilder_result,sma200:sma200_result,ema12:ema12_result,ema26:ema26_result,macd:macd_result['macd'],macdsig:macd_result['sig'],sma5:sma5_result,sma12:sma12_result,sma26:sma26_result,sma50:sma50_result,sma100:sma100_result,stoch_fast_k:stoch_fast_k_result,stoch_fast_d:stoch_fast_d_result,stoch_medium_k:stoch_medium_k_result,stoch_medium_d:stoch_medium_d_result})
+            let tickerTIresults = {trend:trend_result,pivots:pivots_result,price:price_result,gap:pricegap_result,rsi_avg:rsi_avg_result,rsi_sma:rsi_sma_result,rsi_ema:rsi_ema_result,rsi_wilder:rsi_wilder_result,sma200:sma200_result,ema12:ema12_result,ema26:ema26_result,macd:macd_result['macd'],macdsig:macd_result['sig'],sma5:sma5_result,sma12:sma12_result,sma26:sma26_result,sma50:sma50_result,sma100:sma100_result,stoch_fast_k:stoch_fast_k_result,stoch_fast_d:stoch_fast_d_result,stoch_medium_k:stoch_medium_k_result,stoch_medium_d:stoch_medium_d_result}
+            let tickerSignals
+            //tickerSignals = calcSignal(tickerTIresults)
+            TIresult.push({date:result_date,ti:tickerTIresults,sig:tickerSignals})
             ii++
             resulti--
         })
-        // OLD - Reverse array to sort newest to oldest
-        //TIresult.reverse()
-        //console.log(TIresult)
+        //let signalArray = TIresult.reverse()
+        //calcSignal(signalArray)
+
+        // Establish and Test Trend
+
+        // Check Support and Resistance
+
+        // Check Higher Highs, Lower Lows, and opposite
+
+        // Check for SMA, EMA, MACD Crosses
+
+        // Check RSI and Stoch raw signals, then test against trend and other to generate hybrid signal
+
+        // Check volume
+
         return new Promise((resolve, reject) => {
             resolve( TIresult )
         })
     }
     // END TI()
+
+    function calcSignal(props) {
+        console.log(props['stock'])
+        //props.reverse()
+        Object.entries(props['ti']).map(ti =>{
+            console.log(ti[1])
+        })
+    }
 
     // NOT USED - FUTURE WORK!
     function RSI(props) {
@@ -699,6 +926,7 @@ function PolygonTest() {
     }
     // END renderStockData()
 
+
     // onClick function to render charts with TI data for individual or ALL stocks
     function renderTI(ticker) {
         let result = []
@@ -708,10 +936,33 @@ function PolygonTest() {
             element = ticker + 'TIdata'
             let si = _.findKey(stocksTI, ['stock',ticker])
             if (si != 'undefined') {
+                let tickDataSig = stocksTI[si]
+                let tickData= tickDataSig['ti']
+                //function getValue(props) { (x)=>{return x['ti'][props]} TODO make a generic function for all data points to use in charting
+                let getPrice = (x)=>{return x['ti']['price']}
+                let getSma5 = (x)=>{return x['ti']['sma5']}
+                let getSma12 = (x)=>{return x['ti']['sma12']}
+                let getSma26 = (x)=>{return x['ti']['sma26']}
+                let getSma50 = (x)=>{return x['ti']['sma50']}
+                let getSma100 = (x)=>{return x['ti']['sma100']}
+                let getSma200 = (x)=>{return x['ti']['sma200']}
+                let getEma12 = (x)=>{return x['ti']['ema12']}
+                let getEma26 = (x)=>{return x['ti']['ema26']}
+                let getRSIa = (x)=>{return x['ti']['rsi_avg']}
+                let getRSIs = (x)=>{return x['ti']['rsi_sma']}
+                let getRSIe = (x)=>{return x['ti']['rsi_ema']}
+                let getRSIw = (x)=>{return x['ti']['rsi_wilder']}
+                let getMACD = (x)=>{return x['ti']['macd']}
+                let getMACDs = (x)=>{return x['ti']['macdsig']}
+                let getStochFk = (x)=>{return x['ti']['stoch_fast_k']}
+                let getStochFd = (x)=>{return x['ti']['stoch_fast_d']}
+                let getStochMk = (x)=>{return x['ti']['stoch_medium_k']}
+                let getStochMd = (x)=>{return x['ti']['stoch_medium_d']}
+
                 const renderLineChart1 = (
                     <div>
                         <h3 className={'chart-header'}>Closing Price, Exponential Moving Avg. 12 & 26 (EMA) and Simple Moving Avg. 200 (SMA)</h3>
-                        <LineChart width={600} height={300} data={stocksTI[si]['ti']} margin={{
+                        <LineChart width={600} height={300} data={tickData} margin={{
                             top: 5, right: 30, left: 20, bottom: 5,
                         }}
                         >
@@ -719,13 +970,14 @@ function PolygonTest() {
                             <YAxis />
                             <Tooltip />
                             <Legend />
-                            <Line type="monotone" dataKey="sma200" stroke="#039BE5"  />
-                            <Line type="monotone" dataKey="ema12" stroke="#4CAF50" />
-                            <Line type="monotone" dataKey="ema26" stroke="#1B5E20" />
-                            <Line type="monotone" dataKey="price" stroke="#D32F2F" activeDot={{ r: 8 }} />
+                            <Line type="monotone" dataKey={getSma200} name="SMA 200" stroke="#039BE5"  />
+                            <Line type="monotone" dataKey={getEma12} name="EMA 12" stroke="#4CAF50" />
+                            <Line type="monotone" dataKey={getEma26} name="EMA 26" stroke="#1B5E20" />
+                            <Line type="monotone" dataKey={getPrice} name="Price" stroke="#D32F2F" activeDot={{ r: 8 }} />
                         </LineChart>
+                        <div className={"clear"}></div>
                         <h3 className={'chart-header'}>Relative Strength Indicator (RSI - 3 types)</h3>
-                        <LineChart width={600} height={150} data={stocksTI[si]['ti']} margin={{
+                        <LineChart width={600} height={150} data={tickData} margin={{
                             top: 5, right: 30, left: 20, bottom: 5,
                         }}
                         >
@@ -733,12 +985,14 @@ function PolygonTest() {
                             <YAxis />
                             <Tooltip />
                             <Legend />
-                            <Line type="monotone" dataKey="rsi_sma" stroke="#F1C40F" />
-                            <Line type="monotone" dataKey="rsi_ema" stroke="#C0392B" />
-                            <Line type="monotone" dataKey="rsi_wilder" stroke="#27AE60" />
+                            <Line type="monotone" dataKey={getRSIa} name="RSI Avg." stroke="#039BE5" activeDot={{ r: 8 }} />
+                            <Line type="monotone" dataKey={getRSIs} name="RSI SMA" stroke="#F1C40F" />
+                            <Line type="monotone" dataKey={getRSIe} name="RSI EMA" stroke="#C0392B" />
+                            <Line type="monotone" dataKey={getRSIw} name="RSI Wilder" stroke="#27AE60" />
                         </LineChart>
+                        <div className={"clear"}></div>
                         <h3 className={'chart-header'}>Moving Average Convergence Divergence (MACD)</h3>
-                        <LineChart width={600} height={150} data={stocksTI[si]['ti']} margin={{
+                        <LineChart width={600} height={150} data={tickData} margin={{
                             top: 5, right: 30, left: 20, bottom: 5,
                         }}
                         >
@@ -746,11 +1000,12 @@ function PolygonTest() {
                             <YAxis />
                             <Tooltip />
                             <Legend />
-                            <Line type="monotone" dataKey="macd" stroke="#4527A0" />
-                            <Line type="monotone" dataKey="macdsig" stroke="#FFA000" />
+                            <Line type="monotone" dataKey={getMACD} name="MACD" stroke="#4527A0" activeDot={{ r: 8 }} />
+                            <Line type="monotone" dataKey={getMACDs} name="MACD Signal" stroke="#FFA000" />
                         </LineChart>
+                        <div className={"clear"}></div>
                         <h3 className={'chart-header'}>Stochastics (fast - %K period 5, %d 3)</h3>
-                        <LineChart width={600} height={100} data={stocksTI[si]['ti']} margin={{
+                        <LineChart width={600} height={100} data={tickData} margin={{
                             top: 5, right: 30, left: 20, bottom: 5,
                         }}
                         >
@@ -758,11 +1013,12 @@ function PolygonTest() {
                             <YAxis />
                             <Tooltip />
                             <Legend />
-                            <Line type="monotone" dataKey="stoch_fast_k" stroke="#4527A0" />
-                            <Line type="monotone" dataKey="stoch_fast_d" stroke="#FFA000" />
+                            <Line type="monotone" dataKey={getStochFk} name="Stoch Fast K" stroke="#4527A0" activeDot={{ r: 8 }} />
+                            <Line type="monotone" dataKey={getStochFd} name="Stoch Fast D" stroke="#FFA000" />
                         </LineChart>
+                        <div className={"clear"}></div>
                         <h3 className={'chart-header'}>Stochastics (medium - %K period 12, %d 3)</h3>
-                        <LineChart width={600} height={100} data={stocksTI[si]['ti']} margin={{
+                        <LineChart width={600} height={100} data={tickData} margin={{
                             top: 5, right: 30, left: 20, bottom: 5,
                         }}
                         >
@@ -770,11 +1026,12 @@ function PolygonTest() {
                             <YAxis />
                             <Tooltip />
                             <Legend />
-                            <Line type="monotone" dataKey="stoch_medium_k" stroke="#4527A0" />
-                            <Line type="monotone" dataKey="stoch_medium_d" stroke="#FFA000" />
+                            <Line type="monotone" dataKey={getStochMk} name="Stoch Medium K" stroke="#4527A0" activeDot={{ r: 8 }} />
+                            <Line type="monotone" dataKey={getStochMd} name="Stoch Medium D" stroke="#FFA000" />
                         </LineChart>
+                        <div className={"clear"}></div>
                         <h3 className={'chart-header'}>SMAs (5, 12, 26, 50, 100, 200)</h3>
-                        <LineChart width={600} height={300} data={stocksTI[si]['ti']} margin={{
+                        <LineChart width={600} height={300} data={tickData} margin={{
                             top: 5, right: 30, left: 20, bottom: 5,
                         }}
                         >
@@ -782,17 +1039,110 @@ function PolygonTest() {
                             <YAxis />
                             <Tooltip />
                             <Legend />
-                            <Line type="monotone" dataKey="sma5" stroke="#C0392B" />
-                            <Line type="monotone" dataKey="sma12" stroke="#8E44AD" />
-                            <Line type="monotone" dataKey="sma26" stroke="#2980B9" />
-                            <Line type="monotone" dataKey="sma50" stroke="#16A085" />
-                            <Line type="monotone" dataKey="sma100" stroke="#F1C40F" />
-                            <Line type="monotone" dataKey="sma200" stroke="#039BE5" />
+                            <Line type="monotone" dataKey={getSma5} name="SMA 5" stroke="#C0392B" />
+                            <Line type="monotone" dataKey={getSma12} name="SMA 12" stroke="#8E44AD" />
+                            <Line type="monotone" dataKey={getSma26} name="SMA 26" stroke="#2980B9" />
+                            <Line type="monotone" dataKey={getSma50} name="SMA 50" stroke="#16A085" />
+                            <Line type="monotone" dataKey={getSma100} name="SMA 100" stroke="#F1C40F" />
+                            <Line type="monotone" dataKey={getSma200} name="SMA 200" stroke="#039BE5" activeDot={{ r: 8 }} />
                         </LineChart>
                         <div className={'clear'}></div>
                     </div>
                 )
                 result.push(renderLineChart1)
+                result.push(<div><h3 className={'chart-header'}>Pivots and Trend Details</h3><div className={"clear"}></div>
+                    {Object.entries(tickData).map(data => {
+                        //console.log(data)
+                        result.push(<p className={"tidate"}>{data[1]['date']}</p>)
+                        Object.entries(data[1]['ti']['trend']).map(t => {
+                            console.log(t)
+                            if(t[0] === "dir") {
+                                let dir
+                                if(t[1] == 1) {
+                                    dir = "Up"
+                                } else {
+                                    dir = "Down"
+                                }
+                                result.push(<p>Trend direction is {dir}</p>)
+                            }
+                            if(t[0] === "strength") {
+                                let str = t[1]
+                                result.push(<p>Strength is {str}</p>)
+                            }
+                            if(t[0] === "change") {
+                                let chg = t[1]
+                                result.push(<p>Change is {chg}%</p>)
+                            }
+                            // Longer Trends
+                            if(t[0] === "threeDay") {
+                                let dir
+                                let chg = t[1]['change']
+                                let trend = t[1]['trend']
+                                let str = t[1]['strength']
+                                if(trend == 1) {
+                                    dir = "Up"
+                                } else {
+                                    dir = "Down"
+                                }
+                                result.push(<h5>3-day trend:</h5>)
+                                result.push(<p>Trend is {dir}</p>)
+                                result.push(<p>Change is {chg}%</p>)
+                                result.push(<p>Strength is {str}</p>)
+                            }
+                            if(t[0] === "weekly") {
+                                let dir
+                                let chg = t[1]['change']
+                                let trend = t[1]['trend']
+                                let str = t[1]['strength']
+                                if(trend == 1) {
+                                    dir = "Up"
+                                } else {
+                                    dir = "Down"
+                                }
+                                result.push(<h5>Weekly trend:</h5>)
+                                result.push(<p>Trend is {dir}</p>)
+                                result.push(<p>Change is {chg}%</p>)
+                                result.push(<p>Strength is {str}</p>)
+                            }
+                            if(t[0] === "bimonthly") {
+                                let dir
+                                let chg = t[1]['change']
+                                let trend = t[1]['trend']
+                                let str = t[1]['strength']
+                                if(trend == 1) {
+                                    dir = "Up"
+                                } else {
+                                    dir = "Down"
+                                }
+                                result.push(<h5>Bimonthly trend:</h5>)
+                                result.push(<p>Trend is {dir}</p>)
+                                result.push(<p>Change is {chg}%</p>)
+                                result.push(<p>Strength is {str}</p>)
+                            }
+                            if(t[0] === "monthly") {
+                                let dir
+                                let chg = t[1]['change']
+                                let trend = t[1]['trend']
+                                let str = t[1]['strength']
+                                if(trend == 1) {
+                                    dir = "Up"
+                                } else {
+                                    dir = "Down"
+                                }
+                                result.push(<h5>Monthly trend:</h5>)
+                                result.push(<p>Trend is {dir}</p>)
+                                result.push(<p>Change is {chg}%</p>)
+                                result.push(<p>Strength is {str}</p>)
+                            }
+                        })
+                        let tableHead = (<tr><th>Resistance 2</th><th>Resistance 1</th><th>Pivot</th><th>Support 1</th><th>Support 2</th></tr>)
+                        let tableContent = Object.entries(data[1]['ti']['pivots']).map(p => {
+                            return <tr><td>{p[1]['r2']}</td><td>{p[1]['r1']}</td><td>{p[1]['p']}</td><td>{p[1]['s1']}</td><td>{p[1]['s2']}</td></tr>
+                        })
+                        result.push(<table>{tableHead}{tableContent}</table>)
+                    })}
+                </div>)
+                //result.push(signalSection)
             } else {
                 result.push("The stock was loaded from Airtable but not included in the Alpaca data query, charts couldn't be generated.")
             }
@@ -906,7 +1256,7 @@ function PolygonTest() {
     const RightSide = (props) => {
         return <div id={'RightSide'}>
             <div>
-            <h1>Base Algorithm Testing, Development and Showcase</h1>
+            <h1>Algorithm Development, Showcase and Testing</h1>
             <p className={'main'}>Currently must use 'Reload All Data' twice, then 'Display Stock Data'.</p>
             <p className={'main'}>To display in-progress work on data structures, calculating technical indicators, weighting based on user settings, sub-algos to find optimal patterns, and all logic leading up to recommending (and then placing) winning orders/trades. Additionally this will be the working area for building reliability indicators and the base AI to constantly determine more ideal, lower risk, higher return trades.</p>
             <div id={'MainContent'}>
