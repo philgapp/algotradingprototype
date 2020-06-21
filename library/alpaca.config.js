@@ -4,7 +4,7 @@
 global.API_KEY = 'PKZ44I2BO9AITQJ6WWHN';
 global.API_SECRET = '8POL/SsQwOW0QCqEbwIxdaXfncemazjlYTta0e1B';
 global.PAPER = true;
-global.USE_POLYGON = false;  // by default we use the Alpaca data stream but you can change that
+global.USE_POLYGON = true;  // by default we use the Alpaca data stream but you can change that
 global.MINUTE = 60000;
 /*
 exports.API_KEY = API_KEY;

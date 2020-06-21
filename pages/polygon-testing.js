@@ -274,10 +274,12 @@ function PolygonTest() {
         let crosses = []
         let percentChange
         let changeDirection
+        let tempDailyResult
         let tempThreeDayResult
         let tempWeeklyResult
         let tempBimonthlyResult
         let tempMonthlyResult
+        let dailyResult = []
         let threeDayResult = []
         let weeklyResult = []
         let bimonthlyResult = []
@@ -290,15 +292,15 @@ function PolygonTest() {
             // Set today to current close price and store in price array
             let current = bar[1][pricetime]
 
-            let dailyHigh = bar[1]['high']
-            let dailyLow = bar[1]['low']
-            let dailyClose = bar[1]['close']
-            let pricesSum = dailyClose + dailyHigh + dailyLow
-            pivot = (pricesSum / 3).toFixed(2)
-            r2 = parseFloat(pivot + (dailyHigh - dailyLow)).toFixed(2)
-            r1 = parseFloat((pivot * 2) - dailyLow).toFixed(2)
-            s1 = parseFloat((pivot * 2) - dailyHigh).toFixed(2)
-            s2 = parseFloat(pivot - (dailyHigh - dailyLow)).toFixed(2)
+            let dailyHigh = parseFloat(bar[1]['high'])
+            let dailyLow = parseFloat(bar[1]['low'])
+            let dailyClose = parseFloat(bar[1]['close'])
+            let pricesSum = parseFloat(dailyClose) + parseFloat(dailyHigh) + parseFloat(dailyLow)
+            pivot = parseFloat(pricesSum / 3).toFixed(2)
+            r2 = parseFloat(parseFloat(pivot) + (parseFloat(dailyHigh) - parseFloat(dailyLow))).toFixed(2)
+            r1 = parseFloat((parseFloat(pivot) * 2) - parseFloat(dailyLow)).toFixed(2)
+            s1 = parseFloat((parseFloat(pivot) * 2) - parseFloat(dailyHigh)).toFixed(2)
+            s2 = parseFloat(parseFloat(pivot) - (parseFloat(dailyHigh) - parseFloat(dailyLow))).toFixed(2)
             let allPivots = []
             allPivots.push({p:pivot,r2:r2,r1:r1,s1:s1,s2:s2})
             allPivotsArray.push(allPivots)
@@ -333,11 +335,10 @@ function PolygonTest() {
                 if(absPercentChange > 17.5 && absPercentChange <= 20) dailyStrength = 9
                 if(absPercentChange > 20) dailyStrength = 10
                 pricegap.push(diff)
+                tempDailyResult = {strength:dailyStrength,trend:dailyTrend,change:percentChange}
+                dailyResult.push(tempDailyResult)
 
                 // Calculate Trend and Strength SMAs
-                function testSum(a, b) {
-                    return a + b;
-                }
                 let currentTrendArray = []
                 let fullTrendArray = []
                 if(i >= 3) {
@@ -356,7 +357,7 @@ function PolygonTest() {
                     })
                     let temp3DayTrendSum = _.sum(temp3DayTrendArray)
                     let temp3DayStrengthSum = _.sum(temp3DayStrengthArray)
-                    let temp3DayChangeSum = _.sum(temp3DayChangeArray)
+                    let temp3DayChangeSum = _.sum(temp3DayChangeArray).toFixed(2)
                     let temp3DayTrendAvg = temp3DayTrendSum / 3
                     let temp3DayStrengthAvg = (temp3DayStrengthSum / 3).toFixed(2)
                     //let temp3DayChangeAvg = (temp3DayChangeSum / 3).toFixed(2)
@@ -386,7 +387,7 @@ function PolygonTest() {
                         })
                         let tempWeeklyTrendSum = _.sum(tempWeeklyTrendArray)
                         let tempWeeklyStrengthSum = _.sum(tempWeeklyStrengthArray)
-                        let tempWeeklyChangeSum = _.sum(tempWeeklyChangeArray)
+                        let tempWeeklyChangeSum = _.sum(tempWeeklyChangeArray).toFixed(2)
                         let tempWeeklyTrendAvg = tempWeeklyTrendSum / 5
                         let tempWeeklyStrengthAvg = (tempWeeklyStrengthSum / 5).toFixed(2)
                         //let tempWeeklyChangeAvg = (tempWeeklyChangeSum / 5).toFixed(2)
@@ -416,7 +417,7 @@ function PolygonTest() {
                             })
                             let tempBimonthlyTrendSum = _.sum(tempBimonthlyTrendArray)
                             let tempBimonthlyStrengthSum = _.sum(tempBimonthlyStrengthArray)
-                            let tempBimonthlyChangeSum = _.sum(tempBimonthlyChangeArray)
+                            let tempBimonthlyChangeSum = _.sum(tempBimonthlyChangeArray).toFixed(2)
                             let tempBimonthlyTrendAvg = tempBimonthlyTrendSum / 10
                             let tempBimonthlyStrengthAvg = (tempBimonthlyStrengthSum / 10).toFixed(2)
                             //let tempBimonthlyChangeAvg = (tempBimonthlyChangeSum / 10).toFixed(2)
@@ -446,7 +447,7 @@ function PolygonTest() {
                                 })
                                 let tempMonthlyTrendSum = _.sum(tempMonthlyTrendArray)
                                 let tempMonthlyStrengthSum = _.sum(tempMonthlyStrengthArray)
-                                let tempMonthlyChangeSum = _.sum(tempMonthlyChangeArray)
+                                let tempMonthlyChangeSum = _.sum(tempMonthlyChangeArray).toFixed(2)
                                 let tempMonthlyTrendAvg = tempMonthlyTrendSum / 21
                                 let tempMonthlyStrengthAvg = (tempMonthlyStrengthSum / 21).toFixed(2)
                                 //let tempMonthlyChangeAvg = (tempMonthlyChangeSum / 21).toFixed(2)
@@ -464,9 +465,9 @@ function PolygonTest() {
                         }
                     }
                 }
-                dailyTrendArray = {dir:changeDirection,strength:dailyStrength,trend:dailyTrend,change:percentChange,threeDay:tempThreeDayResult,weekly:tempWeeklyResult,bimonthly:tempBimonthlyResult,monthly:tempMonthlyResult}
+                dailyTrendArray = {dir:changeDirection,strength:dailyStrength,trend:dailyTrend,change:percentChange,daily:tempDailyResult,threeDay:tempThreeDayResult,weekly:tempWeeklyResult,bimonthly:tempBimonthlyResult,monthly:tempMonthlyResult}
                 trendArray.push(dailyTrendArray)
-                fullTrendArray.push({threeDay:threeDayResult,weekly:weeklyResult,bimonthly:bimonthlyResult,monthly:monthlyResult})
+                fullTrendArray.push({daily:dailyResult,threeDay:threeDayResult,weekly:weeklyResult,bimonthly:bimonthlyResult,monthly:monthlyResult})
                 //console.log(fullTrendArray) TODO Use for full historic data, perhaps creating averages or other calcs with it too
             }
             // Store current price as previous to use in the next loop and increment i
@@ -772,7 +773,6 @@ function PolygonTest() {
         let stoch_fast_d_result
         let stoch_medium_k_result
         let stoch_medium_d_result
-        let macdsig_result // Trying to use array for both MACD and MACD Signal in macd_result
 
         let pivots_result
         let trend_result
@@ -809,8 +809,6 @@ function PolygonTest() {
         incrementdatecleanup.reverse()
         allPivotsArray.reverse()
         trendArray.reverse()
-        //console.log(rsi_sarray)
-        let testPriceDif
         Object.entries(dates).map(date => {
             let t = date['1']
             let month = t.getMonth() + 1
@@ -937,6 +935,7 @@ function PolygonTest() {
             let si = _.findKey(stocksTI, ['stock',ticker])
             if (si != 'undefined') {
                 let tickDataSig = stocksTI[si]
+                console.log(stocksTI)
                 let tickData= tickDataSig['ti']
                 //function getValue(props) { (x)=>{return x['ti'][props]} TODO make a generic function for all data points to use in charting
                 let getPrice = (x)=>{return x['ti']['price']}
@@ -1050,29 +1049,28 @@ function PolygonTest() {
                     </div>
                 )
                 result.push(renderLineChart1)
-                result.push(<div><h3 className={'chart-header'}>Pivots and Trend Details</h3><div className={"clear"}></div>
+                result.push(<h3 className={'chart-header'}>Pivot and Trend Detail</h3>)
+                result.push(<div>
                     {Object.entries(tickData).map(data => {
-                        //console.log(data)
-                        result.push(<p className={"tidate"}>{data[1]['date']}</p>)
+                        let trendTableHeader = []
+                        let trendTableHeaders = []
+                        let trendTableContent = []
+                        let trendTableDateHeader = (<tr><th>{data[1]['date']}</th></tr>)
                         Object.entries(data[1]['ti']['trend']).map(t => {
-                            console.log(t)
-                            if(t[0] === "dir") {
+                            if(t[0] === "daily") {
                                 let dir
-                                if(t[1] == 1) {
+                                let chg = t[1]['change']
+                                let trend = t[1]['trend']
+                                let str = t[1]['strength']
+                                if(trend == 1) {
                                     dir = "Up"
                                 } else {
                                     dir = "Down"
                                 }
-                                result.push(<p>Trend direction is {dir}</p>)
+                                trendTableHeaders.push(<th>Daily trend:</th>)
+                                trendTableContent.push(<td>Trend: {dir}<br/>Strength: {str}<br/>Change: {chg}%</td>)
                             }
-                            if(t[0] === "strength") {
-                                let str = t[1]
-                                result.push(<p>Strength is {str}</p>)
-                            }
-                            if(t[0] === "change") {
-                                let chg = t[1]
-                                result.push(<p>Change is {chg}%</p>)
-                            }
+
                             // Longer Trends
                             if(t[0] === "threeDay") {
                                 let dir
@@ -1084,10 +1082,8 @@ function PolygonTest() {
                                 } else {
                                     dir = "Down"
                                 }
-                                result.push(<h5>3-day trend:</h5>)
-                                result.push(<p>Trend is {dir}</p>)
-                                result.push(<p>Change is {chg}%</p>)
-                                result.push(<p>Strength is {str}</p>)
+                                trendTableHeaders.push(<th>3-day trend:</th>)
+                                trendTableContent.push(<td>Trend: {dir}<br/>Strength: {str}<br/>Change: {chg}%</td>)
                             }
                             if(t[0] === "weekly") {
                                 let dir
@@ -1099,10 +1095,8 @@ function PolygonTest() {
                                 } else {
                                     dir = "Down"
                                 }
-                                result.push(<h5>Weekly trend:</h5>)
-                                result.push(<p>Trend is {dir}</p>)
-                                result.push(<p>Change is {chg}%</p>)
-                                result.push(<p>Strength is {str}</p>)
+                                trendTableHeaders.push(<th>Weekly trend:</th>)
+                                trendTableContent.push(<td>Trend: {dir}<br/>Strength: {str}<br/>Change: {chg}%</td>)
                             }
                             if(t[0] === "bimonthly") {
                                 let dir
@@ -1114,10 +1108,8 @@ function PolygonTest() {
                                 } else {
                                     dir = "Down"
                                 }
-                                result.push(<h5>Bimonthly trend:</h5>)
-                                result.push(<p>Trend is {dir}</p>)
-                                result.push(<p>Change is {chg}%</p>)
-                                result.push(<p>Strength is {str}</p>)
+                                trendTableHeaders.push(<th>Bimonthly trend:</th>)
+                                trendTableContent.push(<td>Trend: {dir}<br/>Strength: {str}<br/>Change: {chg}%</td>)
                             }
                             if(t[0] === "monthly") {
                                 let dir
@@ -1129,12 +1121,13 @@ function PolygonTest() {
                                 } else {
                                     dir = "Down"
                                 }
-                                result.push(<h5>Monthly trend:</h5>)
-                                result.push(<p>Trend is {dir}</p>)
-                                result.push(<p>Change is {chg}%</p>)
-                                result.push(<p>Strength is {str}</p>)
+                                trendTableHeaders.push(<th>Monthly trend:</th>)
+                                trendTableContent.push(<td>Trend: {dir}<br/>Strength: {str}<br/>Change: {chg}%</td>)
                             }
                         })
+                        trendTableHeader.push(<tr>{trendTableHeaders}</tr>)
+                        let trendTableFinalContent = <tr>{trendTableContent}</tr>
+                        result.push(<table>{trendTableDateHeader}{trendTableHeader}{trendTableFinalContent}</table>)
                         let tableHead = (<tr><th>Resistance 2</th><th>Resistance 1</th><th>Pivot</th><th>Support 1</th><th>Support 2</th></tr>)
                         let tableContent = Object.entries(data[1]['ti']['pivots']).map(p => {
                             return <tr><td>{p[1]['r2']}</td><td>{p[1]['r1']}</td><td>{p[1]['p']}</td><td>{p[1]['s1']}</td><td>{p[1]['s2']}</td></tr>
@@ -1146,7 +1139,7 @@ function PolygonTest() {
             } else {
                 result.push("The stock was loaded from Airtable but not included in the Alpaca data query, charts couldn't be generated.")
             }
-        } else { // Render ALL charts for ALL stock tickers
+        } else { // Render ALL charts for ALL stock tickers TODO remove or fix this, currently will be broken due to changes for individual stocks above
             element = 'techindicators'
             result.push('<ul>')
             Object.entries(stocksTI).map(bar => {
